@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply: my decisions</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell">
+  <div class="dpage">
+    <div class="dpage-h" data-us="7.1">
+      <div><h1>My decisions</h1><p class="sub" style="margin-top:4px;">Saved automatically. Pin what matters, and group decisions into projects.</p></div>
+      <div class="btn-row"><a class="btn sm" href="home.html">New decision</a><button class="btn sm primary" id="newProj" type="button" data-us="BP">New project</button></div>
+    </div>
+    <div id="out"></div>
+  </div>
+</main>
+<div id="menuRoot"></div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const s0 = MK.requireLogin();
+  if (!s0) return;
+  MK.mount();
+  const E = MK.esc, I = MK.ICON;
+  let menu = null;   /* { id, kind, rect } : the open options menu and where its button is */
+
+  function nameModal(title, label, val, ok, onOk) {
+    MK.openModal("<h2>" + E(title) + '</h2><div class="field"><label for="pn">' + E(label) + '</label><input id="pn" value="' + E(val) + '" maxlength="60" autocomplete="off"><div class="err" id="pe" hidden>Give the project a name.</div></div><div class="btn-row"><button class="btn primary" id="pok" type="button">' + E(ok) + '</button><button class="btn" id="pno" type="button">Cancel</button></div>', function (o) {
+      const inp = o.querySelector("#pn");
+      const go = function () { const v = inp.value.trim(); if (!v) { o.querySelector("#pe").hidden = false; return; } MK.closeModal(); onOk(v); };
+      o.querySelector("#pok").addEventListener("click", go);
+      o.querySelector("#pno").addEventListener("click", MK.closeModal);
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+      inp.select();
+    });
+  }
+
+  function dRow(d, inProject) {
+    const c = MK.caseOf(d), ai = c.scenario.mode === "ai";
+    const meta = ["Started " + d.created, MK.statusText(d)].concat(d.pinned && !inProject ? ["Pinned"] : [], ai ? ["AI guidance"] : [], (d.expertReqs || []).length ? ["Expert request sent"] : []).join(" · ");
+    const open = menu && (menu.id === d.id);
+    return '<div class="drow" data-us="7.2"><button type="button" class="main" data-act="open" data-id="' + d.id + '"><span class="t">' + E(MK.titleOf(d)) + '</span><span class="m">' + E(meta) + "</span></button>" +
+      '<button class="btn quiet icon" type="button" data-act="menu" data-id="' + d.id + '" data-kind="d" aria-haspopup="true" aria-expanded="' + !!open + '" aria-label="Options for ' + E(MK.titleOf(d)) + '">' + I.dots + "</button></div>";
+  }
+  function pCard(p, decisions) {
+    const mine = decisions.filter(function (d) { return d.projectId === p.id; }), open = menu && menu.id === p.id;
+    return '<section class="proj" data-us="BP"><div class="proj-h"><span class="ico">' + I.folder + '</span><div class="grow"><div class="t">' + E(p.name) + '</div><div class="m">' + mine.length + (mine.length === 1 ? " decision" : " decisions") + (p.pinned ? " · Pinned" : "") + "</div></div>" +
+      '<button class="btn quiet icon" type="button" data-act="menu" data-id="' + p.id + '" data-kind="p" aria-haspopup="true" aria-expanded="' + !!open + '" aria-label="Options for project ' + E(p.name) + '">' + I.dots + "</button></div>" +
+      '<div class="proj-b">' + (mine.length ? mine.map(function (d) { return dRow(d, true); }).join("") : '<p class="proj-empty">No decisions in this project yet. Tasks you start from a blueprint land here, and you can move any decision in.</p>') + "</div></section>";
+  }
+  function menuHtml() {
+    if (!menu) return "";
+    const st = MK.db(), projects = st.projects;
+    if (menu.kind === "p") {
+      const p = MK.projectOf(menu.id); if (!p) return "";
+      return '<button type="button" data-act="renp" data-id="' + p.id + '">' + I.pencil + 'Rename</button><button type="button" data-act="pinp" data-id="' + p.id + '">' + I.pin + (p.pinned ? "Unpin" : "Pin to top") + '</button><div class="sep"></div><button type="button" class="danger" data-act="delp" data-id="' + p.id + '">' + I.trash + "Delete project</button>";
+    }
+    const d = MK.byId(menu.id); if (!d) return "";
+    if (menu.sub === "move") {
+      return '<span class="lbl">Move to</span>' + projects.filter(function (p) { return p.id !== d.projectId; }).map(function (p) { return '<button type="button" data-act="moveto" data-id="' + d.id + '" data-p="' + p.id + '">' + I.folder + E(p.name) + "</button>"; }).join("") + '<div class="sep"></div><button type="button" data-act="newmove" data-id="' + d.id + '">' + I.plus + "New project…</button>";
+    }
+    return '<button type="button" data-act="open" data-id="' + d.id + '">' + I.arrow + 'Open</button>' +
+      (!d.projectId ? '<button type="button" data-act="pin" data-id="' + d.id + '">' + I.pin + (d.pinned ? "Unpin" : "Pin to top") + "</button>" : "") +
+      '<button type="button" data-act="move" data-id="' + d.id + '">' + I.folder + "Move to project…</button>" +
+      (d.projectId ? '<button type="button" data-act="unmove" data-id="' + d.id + '">' + I.back + "Remove from project</button>" : "");
+  }
+  /* The menu is a fixed popup next to its button, so no container can clip it. It opens upward when there is no room below. */
+  function placeMenu() {
+    const root = document.getElementById("menuRoot");
+    const html = menuHtml();
+    if (!menu || !html) { root.innerHTML = ""; return; }
+    root.innerHTML = '<div class="menu" role="menu" id="menuBox">' + html + "</div>";
+    const box = document.getElementById("menuBox"), r = menu.rect, w = box.offsetWidth, h = box.offsetHeight;
+    let top = r.bottom + 4;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+    box.style.top = top + "px";
+    box.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+    const first = box.querySelector("button"); if (first && menu.focus) first.focus();
+  }
+  function render() {
+    const st = MK.db(), decisions = st.decisions, projects = st.projects;
+    const pinnedP = projects.filter(function (p) { return p.pinned; }), plainP = projects.filter(function (p) { return !p.pinned; });
+    const pinnedD = decisions.filter(function (d) { return d.pinned && !d.projectId; }), plainD = decisions.filter(function (d) { return !d.pinned && !d.projectId; });
+    let h = "";
+    if (pinnedP.length || pinnedD.length) h += '<div class="dgroup"><div class="lbl">' + I.pin.replace('width="18" height="18"', 'width="13" height="13"') + " Pinned</div>" + pinnedP.map(function (p) { return pCard(p, decisions); }).join("") + pinnedD.map(function (d) { return dRow(d, false); }).join("") + "</div>";
+    if (plainP.length) h += '<div class="dgroup"><div class="lbl">Projects</div>' + plainP.map(function (p) { return pCard(p, decisions); }).join("") + "</div>";
+    if (plainD.length) h += '<div class="dgroup"><div class="lbl">Decisions</div>' + plainD.map(function (d) { return dRow(d, false); }).join("") + "</div>";
+    if (!decisions.length && !projects.length) h = '<div class="empty">No decisions yet. Start one from the home page and it appears here, named for you.</div>';
+    document.getElementById("out").innerHTML = h;
+    placeMenu();
+    MK.applyTags();
+  }
+  function closeMenu(refocus) {
+    if (!menu) return;
+    const id = menu.id; menu = null; render();
+    if (refocus) { const b = document.querySelector('[data-act="menu"][data-id="' + id + '"]'); if (b) b.focus(); }
+  }
+
+  function onAct(e) {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    const act = b.dataset.act, id = b.dataset.id;
+    if (act === "menu") {
+      e.stopPropagation();
+      if (menu && menu.id === id) { closeMenu(false); return; }
+      menu = { id: id, kind: b.dataset.kind, rect: b.getBoundingClientRect(), focus: e.detail === 0 };
+      render(); return;
+    }
+    if (act === "move") { menu = { id: id, kind: "d", rect: menu.rect, sub: "move", focus: true }; placeMenu(); return; }
+    menu = null;
+    if (act === "open") { const d = MK.byId(id); MK.setCur(id); MK.go(d.reco && MK.progress(d).complete ? "decide.html" : "clarify.html"); return; }
+    if (act === "pin") MK.pinDecision(id);
+    if (act === "unmove") MK.moveDecision(id, null);
+    if (act === "moveto") { MK.moveDecision(id, b.dataset.p); MK.toast("Moved to project"); }
+    if (act === "newmove") { nameModal("New project", "Project name", "", "Create and move", function (v) { MK.moveDecision(id, MK.createProject(v)); render(); }); }
+    if (act === "pinp") MK.pinProject(id);
+    if (act === "renp") { const p = MK.projectOf(id); nameModal("Rename project", "Project name", p.name, "Save", function (v) { MK.renameProject(id, v); render(); }); }
+    if (act === "delp") {
+      const p = MK.projectOf(id), n = MK.db().decisions.filter(function (d) { return d.projectId === id; }).length;
+      MK.confirmBox("Delete “" + p.name + "”?", n ? "Its " + n + (n === 1 ? " decision stays" : " decisions stay") + " in My decisions, no longer grouped. This cannot be undone." : "This project is empty. This cannot be undone.", "Delete project", true, function () { MK.deleteProject(id); render(); });
+    }
+    render();
+  }
+  document.getElementById("out").addEventListener("click", onAct);
+  document.getElementById("menuRoot").addEventListener("click", onAct);
+  document.addEventListener("click", function (e) { if (menu && !e.target.closest(".menu") && !e.target.closest('[data-act="menu"]')) closeMenu(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && menu) closeMenu(true); });
+  window.addEventListener("scroll", function () { if (menu) closeMenu(false); }, { passive: true });
+  window.addEventListener("resize", function () { if (menu) closeMenu(false); });
+  document.getElementById("newProj").addEventListener("click", function () { nameModal("New project", "Project name", "", "Create project", function (v) { MK.createProject(v); render(); }); });
+  render();
+})();
+</script>
+</body>
+</html>

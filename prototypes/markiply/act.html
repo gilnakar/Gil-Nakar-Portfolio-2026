@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply: action plan</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell">
+  <div class="dl" id="dl">
+    <div class="dl-main" id="main"></div>
+    <aside id="panel" aria-label="Decision summary"></aside>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const s = MK.requireLogin();
+  if (!s) return;
+  let d = MK.cur();
+  if (!d) { MK.go("home.html"); return; }
+  d = MK.enterDecide();
+  if (!d.reco) { MK.go("decide.html"); return; }
+  if (!d.planned) MK.mutate(d.id, function (x) { x.planned = true; });
+  const c = MK.caseOf(d), E = MK.esc, I = MK.ICON, panelEl = document.getElementById("panel");
+  MK.mount();
+  MK.renderStepper("act");
+  MK.markStage("act");
+
+  function stepCard(a, i, many) {
+    const p = MK.pathsOf(a), base = "results.html?from=act&a=" + a.id + "&k=";
+    const cons = (d.contacts || []).filter(function (k) { return k.aid === a.id; }), tls = (d.toolSel || []).filter(function (k) { return k.aid === a.id; });
+    let paths = "";
+    if (p.providers) paths += '<a class="btn" href="' + base + 'providers" data-us="5.1">Find a provider</a>';
+    if (p.tools) paths += '<a class="btn" href="' + base + 'tools" data-us="BP">Find a tool</a>';
+    if (p.providers && p.tools) paths += '<a class="btn" href="' + base + 'both">Providers and tools</a>';
+    const status = (cons.length ? '<div class="status">' + I.check + "Contacted <b>" + E(cons.map(function (k) { return k.name; }).join(", ")) + "</b> through Markiply</div>" : "") +
+      (tls.length ? '<div class="status">' + I.check + "Selected: <b>" + E(tls.map(function (k) { return k.name; }).join(", ")) + "</b></div>" : "");
+    return '<article class="stepc ' + (i === 0 ? "start" : "") + '">' + (many ? '<div class="lbl' + (i === 0 ? " brand" : "") + '">Step ' + (i + 1) + (i === 0 ? " · start here" : "") + "</div>" : "") +
+      '<div><div class="t">' + E(a.text) + "</div>" + (a.hint ? '<div class="h">' + E(a.hint) + "</div>" : "") + "</div>" +
+      '<div class="paths">' + (paths || '<span class="note-s">No provider or tool match for this step. It is yours to do.</span>') + '<button class="askstep" type="button" data-ask="' + a.id + '" data-us="BP">' + I.chat + "Ask about this step</button></div>" + status + "</article>";
+  }
+
+  function render() {
+    d = MK.cur();
+    const b = MK.briefOf(d), acts = MK.allActions(c, d), bp = !!c.blueprint, many = acts.length > 1;
+    MK.renderPanel(panelEl, { kind: "flow", onChange: render });
+    const upd = c.updatable && d.postEdits && Object.keys(d.postEdits).length;
+    let h = MK.crumb(d) + MK.navRow("decide.html", "the recommendation") +
+      '<div class="plan-h"><div class="lbl brand" style="margin-bottom:6px;">' + (bp ? "Blueprint" : "Action plan") + (d.version > 1 ? " · Version " + d.version : "") + "</div><h1>" + (bp ? "Your blueprint: " + E(c.title) : "Your action plan") + '</h1></div>' +
+      '<section class="card doc" data-us="BP"><div class="doc-sec"><h3>The decision</h3><p>' + E(b.answer) + "</p>" +
+      (b.kpis ? '<div class="tiers">' + b.kpis.map(function (k) { return '<div class="tier"><div class="n">' + E(k.v) + '</div><div class="k"><b>' + E(k.k) + "</b><br>" + E(k.s) + "</div></div>"; }).join("") + "</div>" : "") + "</div></section>";
+    if (upd) {
+      h += '<div class="note warn" style="margin-top:16px;" data-us="BP,DR">' + I.warn + "<div><b>Your answers changed after this " + (bp ? "blueprint" : "plan") + " was built.</b> The plan below still follows your earlier answers.<div class=\"btn-row\" style=\"margin-top:10px;\"><button class=\"btn sm primary\" id=\"updBtn\" type=\"button\">Update blueprint</button><span class=\"note-s\">This creates version " + ((d.version || 1) + 1) + " from your edited answers.</span></div></div></div>";
+    }
+    h += '<div class="stage-label"><b>' + (many ? "Steps" : "Your step") + "</b>" + (many ? "<span>For each step, find a provider, a tool or both.</span>" : "") + "</div>";
+    if (b.priorities) {
+      ["now", "next", "later"].forEach(function (k) {
+        const list = acts.filter(function (a) { return a.stage === k; });
+        if (!list.length) return;
+        h += '<div class="stage-label"><b>' + { now: "Now", next: "Next", later: "Later" }[k] + "</b></div>" + list.map(function (a) { return stepCard(a, acts.indexOf(a), many); }).join("");
+      });
+    } else h += acts.map(function (a, i) { return stepCard(a, i, many); }).join("");
+
+    if (b.act && b.act.checkpoint) {
+      h += '<div class="stage-label"><b>Checkpoint</b></div><article class="stepc" data-us="BP"><div><div class="t">Day 90</div><div class="h">' + E(b.act.checkpoint) + "</div></div></article>";
+    }
+    if (b.act && b.act.template) {
+      h += '<div class="stage-label"><b>Template</b></div><article class="card tpl" data-us="ILL"><span class="ico">' + I.file + '</span><div><div class="t" style="font-weight:700;">' + E(b.act.template.name) + '</div><div class="note-s">' + E(b.act.template.note) + '</div></div><button class="btn" id="tplBtn" type="button">' + I.download + "Download</button></article>";
+    }
+    if (bp) {
+      const rest = c.blueprint.sections.filter(function (x) { return !x.me; });
+      h += '<div class="stage-label"><b>More blueprint tasks</b><span>Each is its own decision in your project.</span></div><section class="card pad" data-us="BP"><ul class="bullets">' + rest.map(function (x) { return "<li><b>" + E(x.a) + "</b>" + (x.req ? " · required" : " · later") + "</li>"; }).join("") + '</ul><p class="note-s" style="margin-top:12px;">Open them from My decisions, in the project “' + E(c.blueprint.name) + '”. Bringing the tasks together into one blueprint comes in a later version.</p><div class="btn-row" style="margin-top:12px;"><a class="btn" href="decisions.html">Go to My decisions</a></div></section>';
+    }
+    document.getElementById("main").innerHTML = h;
+    MK.wireNav(document.getElementById("main"));
+
+    document.querySelectorAll("[data-ask]").forEach(function (btn) {
+      btn.addEventListener("click", function () { MK.openExpert({ step: acts.find(function (a) { return a.id === btn.dataset.ask; }), onSent: render }); });
+    });
+    const ub = document.getElementById("updBtn"); if (ub) ub.addEventListener("click", function () { MK.updateBlueprint(); MK.toast("Blueprint updated to version " + MK.cur().version); render(); });
+    const tb = document.getElementById("tplBtn"); if (tb) tb.addEventListener("click", function () { MK.tip(this, "Sample only. A real template download comes in a later version."); });
+    MK.applyTags();
+  }
+  render();
+})();
+</script>
+</body>
+</html>

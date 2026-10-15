@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Coordinated Operating Strategy Dashboard case study</title>
+<link href="../../style.css" rel="stylesheet"/>
+<style>
+.password-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+}
+
+.password-modal {
+  background: white;
+  padding: 48px;
+  border-radius: 8px;
+  max-width: 540px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.password-modal h2 {
+  margin: 0 0 16px 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.password-modal .teaser {
+  margin: 24px 0 32px 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #555;
+}
+
+.password-modal input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.password-modal button {
+  background: #0066cc;
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  font-size: 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.password-modal button:hover {
+  background: #0052a3;
+}
+
+.password-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-close-btn:hover {
+  color: #333;
+  background: none;
+}
+
+.password-modal {
+  position: relative;
+}
+
+.password-error {
+  color: #d9534f;
+  font-size: 14px;
+  margin-top: 12px;
+  display: none;
+}
+
+.content-locked {
+  display: none;
+}
+
+.content-locked.unlocked {
+  display: block;
+}
+
+.password-overlay.unlocked {
+  display: none;
+}
+</style>
+</head>
+<body class="case-imubit">
+<aside class="rail">
+<div class="rail-inner">
+<a class="rail-title rail-home" href="../../index.html">Gil Nakar</a>
+<p class="rail-copy">Senior Product Designer<br/>AI products · ML platforms · expert workflows</p>
+<nav class="nav primary">
+<a class="" href="../../cases/imubit/index.html">Imubit</a>
+<a class="active" href="../../cases/cos/index.html">COS Dashboard</a>
+<a class="" href="../../cases/qbiq/index.html">qbiq</a>
+<a class="" href="../../cases/matrix/index.html">Matrix Experience</a>
+<a class="" href="../../cases/audioburst/index.html">Audioburst</a>
+<a class="" href="../../cases/madafino/index.html">Madafino</a>
+</nav>
+<div class="nav-label">Broader background</div>
+<nav class="nav secondary">
+<a class="sub" href="../../cases/academia/index.html">Academia</a>
+<a class="sub" href="../../cases/architecture/index.html">Architecture</a>
+</nav>
+<div class="rail-footer">
+<a class="rail-contact" href="../../index.html#contact">Contact me</a>
+</div>
+</div>
+</aside>
+
+<main class="shell">
+<header class="topbar">
+<a class="home-back" href="../../index.html">← Home</a>
+</header>
+
+<div class="password-overlay" id="passwordOverlay">
+<div class="password-modal">
+<button class="password-close-btn" onclick="closePasswordModal()" title="Close">×</button>
+<h2>Coordinated Operating Strategy Dashboard</h2>
+<p class="teaser">An operational envelope that unifies machine learning models, system of records, and strategic initiatives into a single, evidence-based view for making faster, more reliable decisions across plant operations. Currently in development.</p>
+<input type="password" id="passwordInput" placeholder="Enter password to view case study" autofocus/>
+<button onclick="checkPassword()">Unlock</button>
+<button onclick="closePasswordModal()" style="background: #f0f0f0; color: #333; margin-top: 12px; width: 100%;">Close</button>
+<div class="password-error" id="passwordError">Incorrect password. Please try again.</div>
+</div>
+</div>
+
+<div class="content-locked" id="lockedContent">
+
+<section class="case-hero">
+<div class="case-copy">
+<div class="company-logos">
+<span class="logo-tile frameless logo">
+<img alt="Imubit mark" src="../../assets/v11/imubit_logo.png"/>
+</span>
+</div>
+<div class="kicker">Imubit / Strategic operations / AI-integrated platform</div>
+<h1>Coordinated Operating Strategy Dashboard</h1>
+<p>A founder-led initiative to create an operational envelope that transcends individual model deployment. COS unifies predictive models, system of records, collaborative insights, and strategic initiatives into a cohesive, evidence-based platform for industrial operations — enabling multi-level visibility and faster, more reliable decision-making across plants.</p>
+<div class="cav vstack">
+<div class="cav-card">
+<span>Initiative</span>
+<p>Founder-led vision with a cross-functional tiger team to demonstrate expanded product capabilities to key customers and shape the future of industrial AI operations.</p>
+</div>
+<div class="cav-card">
+<span>Scope</span>
+<p>Multi-level platform serving operators, engineers, site managers, and corporate leadership — managing 3–20 coordinated operating strategies per plant with dynamic status tracking and collaborative oversight.</p>
+</div>
+<div class="cav-card">
+<span>Value</span>
+<p>Evidence-based operational visibility: unite predictive models, technical systems, project tracking, and communications into a single source of truth for strategic decision-making and continuous improvement.</p>
+</div>
+</div>
+</div>
+</section>
+
+<section class="section">
+<div class="case-end role-summary">
+<h2>Role and vision</h2>
+<p>As part of the founder-led tiger team, I shaped the product vision, user experience, and information architecture for a platform that extends beyond model optimization to encompass operational maturity, strategic project management, and enterprise-level visibility. The goal was to demonstrate that industrial AI's true value lies not just in predictive accuracy, but in how models integrate with real operations, systems of record, and human decision-making.</p>
+<div class="role-strip">
+<div>
+<strong>Cross-functional collaboration</strong>
+<span>Worked with founder, engineering leadership, and delivery teams to translate strategic vision into user-centered design.</span>
+</div>
+<div>
+<strong>Multi-level product thinking</strong>
+<span>Designed for operators, engineers, plant managers, and corporate stakeholders — each with different information needs and decision contexts.</span>
+</div>
+<div>
+<strong>Operational envelope design</strong>
+<span>Created an integrated view that brings together models, sensors, system of records, communications, and strategic initiatives into one coherent platform.</span>
+</div>
+</div>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">Strategic context</div>
+<h2>Beyond model deployment.</h2>
+<p>Industrial plants operate through interconnected systems and processes. Models are powerful, but their value is realized only when integrated into broader operational workflows. COS unifies everything: predictive insights, operational data, collaborative notes, project status, and strategic direction.</p>
+</div>
+<div class="gallery">
+<figure class="media hero-wide ui">
+<button aria-label="Expand Company Level Dashboard" class="image-button">
+<img alt="Company Level Dashboard showing coordinated operating strategies" data-zoom="true" src="../../assets/cos/Company Level Dashboard.png"/>
+</button>
+<figcaption>
+<strong>Company Level Dashboard</strong>
+<span>Multi-facility overview with Overall Execution Level tracking, Findings summary, and Improvements visibility across all coordinated strategies.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">Strategy portfolio</div>
+<h2>Coordinated strategies at scale.</h2>
+<p>Plants manage multiple concurrent strategic initiatives — each with its own lifecycle from ideation through reactive implementation to fully automated deployment. COS provides unified visibility into status, findings, improvements, and connections to underlying models and operational systems.</p>
+</div>
+<div class="gallery">
+<figure class="media normal ui">
+<button aria-label="Expand All COS Deliberate and Augmented" class="image-button">
+<img alt="COS Center showing all strategies with status states" data-zoom="true" src="../../assets/cos/All COS - deliberate and augmented.png"/>
+</button>
+<figcaption>
+<strong>COS Center overview</strong>
+<span>Portfolio view of all coordinated operating strategies with status indicators (Deliberate, Augmented, Automated) and mapped models.</span>
+</figcaption>
+</figure>
+<figure class="media normal ui">
+<button aria-label="Expand COS Deliberate Only" class="image-button">
+<img alt="Filtered view showing only Deliberate strategies" data-zoom="true" src="../../assets/cos/all COS deliberate only.png"/>
+</button>
+<figcaption>
+<strong>Filtered strategy view</strong>
+<span>Segment strategies by maturity level to focus on specific operational priorities.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">Models and systems integration</div>
+<h2>From technical models to operational intelligence.</h2>
+<p>Each coordinated strategy connects to mapped predictive models, system of records, sensor data, and operational context. This integration transforms isolated ML outputs into actionable business intelligence for different stakeholder levels.</p>
+</div>
+<div class="gallery">
+<figure class="media normal ui">
+<button aria-label="Expand Modeller FHR Default" class="image-button">
+<img alt="Model builder interface with parameter definition" data-zoom="true" src="../../assets/cos/Modeller - FHR - default.png"/>
+</button>
+<figcaption>
+<strong>Model definition and refinement</strong>
+<span>Domain experts configure models directly, with predictive guidance and field recommendations.</span>
+</figcaption>
+</figure>
+<figure class="media normal ui">
+<button aria-label="Expand Modeller FHR Suggestion Selected" class="image-button">
+<img alt="Model builder showing AI-assisted suggestions" data-zoom="true" src="../../assets/cos/Modeller - FHR - suggetion selected.png"/>
+</button>
+<figcaption>
+<strong>AI-assisted configuration</strong>
+<span>Imubit's predictive models provide intelligent suggestions to accelerate model definition and improve outcomes.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">Collaborative investigation</div>
+<h2>Evidence-based decision-making.</h2>
+<p>Teams investigate strategies by reviewing connected data, time-series behavior, events, system records, and collaborative notes. This multi-perspective view enables faster root-cause analysis and confident decision-making.</p>
+</div>
+<div class="gallery">
+<figure class="media normal ui">
+<button aria-label="Expand Annotation Screen 1" class="image-button">
+<img alt="Dashboard with annotation and notes sidebar" data-zoom="true" src="../../assets/cos/Annotation screen 1 - all model's notes.png"/>
+</button>
+<figcaption>
+<strong>Collaborative annotations</strong>
+<span>Notes tied directly to time series and events, with user attribution and status tracking.</span>
+</figcaption>
+</figure>
+<figure class="media normal ui">
+<button aria-label="Expand Annotation Screen 2" class="image-button">
+<img alt="Detailed annotation workflow with threading" data-zoom="true" src="../../assets/cos/Annotation screen 2 - annotation demo draft.png"/>
+</button>
+<figcaption>
+<strong>Threaded discussion context</strong>
+<span>Team members discuss findings within the operational context, maintaining full audit trail and decision history.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">Process documentation</div>
+<h2>Visual process understanding.</h2>
+<p>COS integrates visual documentation of physical processes (P&ID diagrams) alongside operational data and model logic. This helps teams understand data flow, sensor placement, and connections between physical equipment and digital models.</p>
+</div>
+<div class="gallery">
+<figure class="media normal ui">
+<button aria-label="Expand Process Diagram Canvas 1" class="image-button">
+<img alt="COS Explorer with process diagram canvas" data-zoom="true" src="../../assets/cos/canvas - process diagram 0.png"/>
+</button>
+<figcaption>
+<strong>Process diagram interface</strong>
+<span>Collaborative canvas for mapping process flows, equipment, and sensor integration.</span>
+</figcaption>
+</figure>
+<figure class="media normal ui">
+<button aria-label="Expand Process Diagram Canvas 2" class="image-button">
+<img alt="Detailed process flow diagram" data-zoom="true" src="../../assets/cos/canvas - process diagram 1.png"/>
+</button>
+<figcaption>
+<strong>Integrated equipment mapping</strong>
+<span>Equipment assets, connections, and sensor relationships documented within the operational context.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">System of records</div>
+<h2>Unified operational data.</h2>
+<p>System of records integration brings together shift logs, communications, alerts, and configuration into one place. This creates a complete operational timeline that contextualizes model behavior and strategic decisions.</p>
+</div>
+<div class="gallery">
+<figure class="media normal ui">
+<button aria-label="Expand System of Records Upload Modal" class="image-button">
+<img alt="System of records configuration modal" data-zoom="true" src="../../assets/cos/System of recirds - upload and config modal.png"/>
+</button>
+<figcaption>
+<strong>Records management</strong>
+<span>Connect and configure system of records data sources for unified operational visibility.</span>
+</figcaption>
+</figure>
+<figure class="media normal ui">
+<button aria-label="Expand System of Records View" class="image-button">
+<img alt="Integrated system of records timeline view" data-zoom="true" src="../../assets/cos/System of Records -10.png"/>
+</button>
+<figcaption>
+<strong>Operational timeline</strong>
+<span>Chronological integration of communications, alerts, events, and system changes for comprehensive investigation.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">Operational visibility</div>
+<h2>Strategy-level dashboards.</h2>
+<p>Dedicated dashboards provide real-time visibility into specific coordinated strategies. Each dashboard connects operational metrics, model performance, mapped variables, and strategic progress indicators into a coherent view.</p>
+</div>
+<div class="gallery">
+<figure class="media normal ui">
+<button aria-label="Expand Specific COS Dashboard" class="image-button">
+<img alt="Individual strategy dashboard with events and metrics" data-zoom="true" src="../../assets/cos/specific COS dashboard view - events .png"/>
+</button>
+<figcaption>
+<strong>Strategy dashboard</strong>
+<span>Real-time monitoring of a specific coordinated operating strategy with events, metrics, and improvement tracking.</span>
+</figcaption>
+</figure>
+<figure class="media normal ui">
+<button aria-label="Expand Empty State" class="image-button">
+<img alt="Empty state design for new strategy creation" data-zoom="true" src="../../assets/cos/developed - empty state test.png"/>
+</button>
+<figcaption>
+<strong>Empty state guidance</strong>
+<span>Clear onboarding and setup flow for creating new coordinated operating strategies.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">Strategic positioning</div>
+<h2>Beyond metrics: operational maturity.</h2>
+<p>COS transcends traditional model monitoring. It's a framework for thinking about industrial operations holistically: how do models, systems, people, and processes align? How do you progress from reactive responses to deliberate strategies to fully automated operations? How do you capture and reuse operational knowledge across the enterprise?</p>
+</div>
+<div class="gallery">
+<figure class="media hero-wide ui">
+<button aria-label="Expand Initiative 35" class="image-button">
+<img alt="Strategic initiative overview" data-zoom="true" src="../../assets/cos/35.png"/>
+</button>
+<figcaption>
+<strong>Strategic initiative framework</strong>
+<span>The foundation for how plants prioritize, track, and execute coordinated improvements across operations.</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="section split">
+<div class="sticky">
+<div class="label">Impact &amp; vision</div>
+<h2>Operational intelligence platform.</h2>
+<p>COS represents a maturation of industrial AI thinking: from isolated model optimization to integrated operational strategy. It demonstrates how predictive models, collaborative tools, and operational visibility can work together to accelerate the journey from reactive firefighting to proactive, evidence-based strategic operations.</p>
+</div>
+<div class="impact-grid">
+<div class="impact-card featured">
+<span class="eyebrow">Operational envelope</span>
+<h3>Unifying models, systems, and strategy</h3>
+<p>COS layers a business and operational framework on top of technical ML capabilities, showing how models integrate into real plant operations and contribute to broader strategic objectives.</p>
+</div>
+<div class="impact-card">
+<span class="eyebrow">Multi-level visibility</span>
+<h3>From operators to corporate leadership</h3>
+<p>Different stakeholders see different slices of the same operational reality: operators see tactical context, engineers investigate technical details, managers track strategic progress, executives see portfolio-level insights.</p>
+</div>
+<div class="impact-card">
+<span class="eyebrow">Collaborative investigation</span>
+<h3>Evidence-based decisions</h3>
+<p>By bringing together models, data, records, communications, and annotations in one place, teams can investigate faster and make more confident decisions with full operational context.</p>
+</div>
+<div class="impact-card">
+<span class="eyebrow">Maturity progression</span>
+<h3>From reactive to automated</h3>
+<p>COS tracks the journey of each strategic initiative: from undefined, through reactive, deliberate, and augmented phases, toward full automation — providing visibility into operational evolution.</p>
+</div>
+<div class="impact-card">
+<span class="eyebrow">Enterprise knowledge</span>
+<h3>Capturing operational wisdom</h3>
+<p>The system documents not just what happened, but why teams made decisions, what they learned, and how they progressed — creating reusable operational knowledge across the enterprise.</p>
+</div>
+</div>
+</section>
+
+<section class="section">
+<div class="case-end">
+<h2>Product discovery outcome</h2>
+<p>COS emerged from a focused product discovery initiative to articulate how Imubit's platform could serve plants at a strategic level — not just as a model optimization tool, but as an operational intelligence system that helps industrial enterprises understand their processes, coordinate improvements, and progress toward automated operations. The design demonstrates how AI and collaborative tools can create shared understanding across technical and business teams, enabling faster, more confident decision-making in complex industrial environments.</p>
+</div>
+</section>
+
+</div>
+
+<div aria-hidden="true" class="lightbox" id="lightbox">
+<button class="lb-close" title="Close">×</button>
+<button class="lb-arrow lb-prev" title="Previous">‹</button>
+<button class="lb-arrow lb-next" title="Next">›</button>
+<div class="lb-tools">
+<button data-zoom="in">Zoom +</button>
+<button data-zoom="out">Zoom -</button>
+<button data-zoom="reset">Reset</button>
+</div>
+<img alt="Expanded portfolio image" class="lb-img"/>
+<div class="lb-meta">
+<span class="lb-count"></span>
+<p class="lb-caption"></p>
+</div>
+</div>
+
+<script src="../../script.js"></script>
+<script>
+function checkPassword() {
+  const input = document.getElementById('passwordInput').value;
+  const correctPassword = 'blgcyNAKAR1';
+  
+  if (input === correctPassword) {
+    document.getElementById('passwordOverlay').classList.add('unlocked');
+    document.getElementById('lockedContent').classList.add('unlocked');
+  } else {
+    document.getElementById('passwordError').style.display = 'block';
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+  }
+}
+
+function closePasswordModal() {
+  window.history.back();
+}
+
+document.getElementById('passwordInput').addEventListener('keypress', function(event) {
+  if (event.key === 'Enter') {
+    checkPassword();
+  }
+});
+
+document.getElementById('passwordOverlay').addEventListener('click', function(event) {
+  if (event.target === this) {
+    closePasswordModal();
+  }
+});
+</script>
+</body>
+</html>

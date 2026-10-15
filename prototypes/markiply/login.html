@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Access Markiply</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell">
+  <div class="login" data-us="1.1">
+    <h1>Welcome to Markiply</h1>
+    <p class="lead">Clarity to decide. Trust to act.<br>Enter the email your Markiply contact registered. There is no password in V1.</p>
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="email">Work email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="you@company.com">
+        <div class="err" id="err" hidden></div>
+      </div>
+      <button class="btn primary lg block" style="margin-top:24px;" type="submit">Continue</button>
+    </form>
+    <p class="small" data-us="9.2">Demo pilot user: <button type="button" id="fill" class="link">use maya@talentscout.example</button></p>
+  </div>
+</main>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  MK.mount();
+  if (MK.db().user) { window.location.replace("home.html"); return; }
+  const input = document.getElementById("email"), err = document.getElementById("err");
+  document.getElementById("fill").addEventListener("click", function () { input.value = "maya@talentscout.example"; input.focus(); });
+  document.getElementById("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!MK.login(input.value)) { err.hidden = false; err.textContent = "This email is not on the pilot list yet. Ask your Markiply contact to add you."; return; }
+    MK.go("home.html");
+  });
+})();
+</script>
+</body>
+</html>

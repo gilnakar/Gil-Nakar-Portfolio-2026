@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply: recommendation</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell">
+  <div class="dl" id="dl">
+    <div class="dl-main" id="main"></div>
+    <aside id="panel" aria-label="Decision summary"></aside>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const s = MK.requireLogin();
+  if (!s) return;
+  let d = MK.cur();
+  if (!d) { MK.go("home.html"); return; }
+  d = MK.enterDecide();
+  const c = MK.caseOf(d), E = MK.esc, I = MK.ICON, panelEl = document.getElementById("panel");
+  MK.mount();
+  MK.renderStepper("decide");
+  MK.markStage("decide");
+  const COL = ["#482962", "#C2185B", "#52C1E6", "#FFB84D", "#E63946", "#0B6B53", "#8A82A0"];
+  const money = n => "$" + n + "K";
+
+  function split(sp) {
+    const totB = sp.rows.reduce(function (a, r) { return a + r.a; }, 0), totA = sp.rows.reduce(function (a, r) { return a + r.b; }, 0);
+    const bar = function (key, tot) { return '<div class="bar-row"><span class="bl">' + (key === "a" ? "Before" : "After") + '</span><div class="stack" role="img" aria-label="' + (key === "a" ? "Before" : "After") + ' split">' + sp.rows.map(function (r, i) { return r[key] ? '<i style="width:' + (r[key] / tot * 100) + "%;background:" + COL[i % COL.length] + '" title="' + E(r.n) + '"></i>' : ""; }).join("") + "</div></div>"; };
+    return '<section class="sect" data-us="BP"><h2>The split</h2><p class="sub">Before and after, in thousands of US dollars (sample numbers).</p>' +
+      bar("a", totB) + bar("b", totA) +
+      '<div class="split-wrap"><table class="split" style="margin-top:16px;"><thead><tr><th scope="col">Line</th><th scope="col" class="num">Before</th><th scope="col" class="num">After</th><th scope="col" class="num">Change</th></tr></thead><tbody>' +
+      sp.rows.map(function (r, i) {
+        const df = r.b - r.a;
+        return '<tr><td class="name"><span class="sw-dot" style="background:' + COL[i % COL.length] + '"></span>' + E(r.n) + (r.hl ? ' <span class="pill brand">New</span>' : "") + '</td><td class="num">' + (r.a ? money(r.a) : "None") + '</td><td class="num"><b>' + (r.b ? money(r.b) : "None") + '</b></td><td class="num"><span class="chg ' + (df > 0 ? "up" : (df < 0 ? "dn" : "")) + '">' + (df === 0 ? "No change" : (df > 0 ? "+" : "-") + money(Math.abs(df))) + "</span></td></tr>";
+      }).join("") +
+      '<tr class="total"><td class="name">Total</td><td class="num">' + sp.total + '</td><td class="num">' + sp.total + '</td><td class="num"></td></tr></tbody></table></div>' +
+      '<p class="footnote">' + E(sp.note) + "</p></section>";
+  }
+
+  /* the three ways to take the next step */
+  function optionCards(a, picks) {
+    const pa = MK.pathsOf(a), S = a.set && MKDATA.SETS[a.set], T = a.tset && MKDATA.TSETS[a.tset];
+    const out = [];
+    if (pa.providers) {
+      const n = S.vetted && S.vetted.length;
+      out.push({ k: "provider", t: "Find a provider", d: n ? "Agencies, studios and advisors matched to your decision" : "No verified match yet. AI suggestions only", tag: n ? n + (n === 1 ? " verified match" : " verified matches") : "Not verified" });
+    }
+    if (pa.tools) {
+      const n = T && !T.generic ? T.vetted.length + (T.listed || []).length : (T && T.generic ? T.generic.length : 0);
+      out.push({ k: "tool", t: "Find a tool", d: "Software you can use yourself to do this step", tag: n ? n + (n === 1 ? " tool" : " tools") : "" });
+    }
+    out.push({ k: "markiply", t: "Work with Markiply", d: "A Markiply expert helps you with this step", tag: "" });
+    return out.map(function (o) {
+      const on = picks.indexOf(o.k) > -1;
+      return '<button type="button" class="optc' + (on ? " sel" : "") + '" data-k="' + o.k + '" role="checkbox" aria-checked="' + on + '" data-us="' + (o.k === "markiply" ? "BP" : "4.3") + '"><span class="bx" aria-hidden="true">' + (on ? I.check : "") + '</span><span class="t">' + o.t + '</span><span class="d">' + o.d + "</span>" + (o.tag ? '<span class="tag note-s">' + E(o.tag) + "</span>" : "") + "</button>";
+    }).join("");
+  }
+  function goLabel(picks) {
+    if (picks.indexOf("markiply") > -1) return "Talk to a Markiply expert";
+    const p = picks.indexOf("provider") > -1, t = picks.indexOf("tool") > -1;
+    return p && t ? "See providers and tools" : (t ? "See tools" : "See providers");
+  }
+
+  function render() {
+    d = MK.cur();
+    const P = MK.progress(d), st = MK.stateOf(d), final = st.key !== "draft";
+    MK.renderPanel(panelEl, { kind: "flow", onChange: render });
+    const b = P.complete ? MK.briefOf(d) : null;
+    const acts = MK.allActions(c, d).filter(function (a) { return !MK.hasUnresolved(a.text); });
+    const a0 = acts[0] || null, multi = acts.length > 1;
+    const left = P.total - P.answered;
+    const topActs = final ? '<div class="acts"><button class="btn sm" id="pdfBtn" type="button" data-us="4.2">' + I.download + 'PDF</button><button class="btn sm" id="shareBtn" type="button" data-us="4.2">' + I.share + "Share</button>" +
+      (st.key === "locked" ? '<button class="btn sm" id="unlockBtn" type="button" data-us="BP">' + I.unlock + "Unlock to edit</button>" : '<button class="btn sm" id="lockBtn" type="button" data-us="BP">' + I.lock + "Save and lock</button>") + "</div>" : "";
+    let h = MK.crumb(d) + MK.navRow("clarify.html", "the questions", topActs);
+
+    /* header: the recommendation, with the actions that belong to the whole decision on the right */
+    h += '<section class="dec-h" aria-labelledby="recoH" data-us="4.1"><div class="grow"><div class="rmeta"><span class="lbl brand">' + E(b ? b.depthTag : c.brief.depthTag) + "</span>" + MK.scenarioBadge(c) + "</div>" +
+      '<h1 class="reco-h1" id="recoH">' + E(b ? b.answer : c.draft.answer) + "</h1>" +
+      (b && b.basis ? '<p class="basis">' + E(b.basis) + "</p>" : (!b ? '<p class="basis">Based on ' + (P.answered ? "your " + P.answered + (P.answered === 1 ? " answer" : " answers") + " so far." : "your message so far.") + "</p>" : "")) + "</div>" +
+      "</section>";
+
+    /* a calm status line, not a banner */
+    const calm = [];
+    if (!final) calm.push("Early view." + (left > 0 ? " " + left + (left === 1 ? " question is" : " questions are") + " still open, so this can change." : "") + ' <a href="clarify.html">Continue the questions</a>');
+    if (c.scenario.mode === "ai") calm.push("AI guidance. No Markiply expert has reviewed this yet, so treat it as a starting point.");
+    if (calm.length) h += '<p class="calm" role="status" data-us="' + (final ? "2.4" : "BP") + '" style="margin-top:16px;">' + I.info + "<span>" + calm.join(" ") + "</span></p>";
+
+    if (b && b.kpis) h += '<div class="kpis">' + b.kpis.map(function (k) { return '<div class="kpi"><div class="k">' + E(k.k) + '</div><div class="v">' + E(k.v) + '</div><div class="s">' + E(k.s) + "</div></div>"; }).join("") + "</div>";
+
+    /* the next step: first thing to do, with the way to do it */
+    if (a0) {
+      const picks = MK.pickOf(d, a0);
+      h += '<section class="next" aria-labelledby="nextH" data-us="4.3"><div class="lbl brand">Your next step</div><h2 id="nextH">' + E(a0.text) + "</h2>" + (a0.hint ? '<p class="hint">' + E(a0.hint) + "</p>" : "") +
+        '<div class="optcards" id="opts" role="group" aria-label="How do you want to do this step?">' + optionCards(a0, picks) + "</div>" +
+        '<div class="go-row"><button class="btn primary" id="goBtn" type="button">' + goLabel(picks) + I.arrow + "</button>" +
+        '<button class="askstep" id="askStep" type="button" data-us="BP">' + I.chat + "Ask about this step</button>" +
+        (!final ? '<span class="why-s">Early matches. They may change as you answer.</span>' : "") + "</div>" +
+        (multi ? '<details class="later"><summary>' + (acts.length - 1) + " more " + (acts.length - 1 === 1 ? "step" : "steps") + (final ? " and the action plan" : "") + I.chev + '</summary><ol class="steps-prev" style="margin-top:10px;">' +
+          acts.slice(1).map(function (a, i) { return '<li><span class="n">' + (i + 2) + '</span><div><div class="t">' + E(a.text) + "</div>" + (a.stage ? '<div class="note-s">' + { now: "Now", next: "Next", later: "Later" }[a.stage] + "</div>" : "") + "</div><span></span></li>"; }).join("") + "</ol>" +
+          (final ? '<div class="btn-row" style="margin-top:12px;"><button class="btn sm" id="planBtn" type="button" data-us="4.3">' + (d.planned ? "Open the action plan" : "Turn into an action plan") + I.arrow + "</button></div>" : "") + "</details>" : "") +
+        "</section>";
+    }
+
+    if (b && b.split) h += split(b.split);
+
+    /* secondary: why, and going deeper */
+    if (b) {
+      const fold = function (t, body, us, open) { return '<details class="fold"' + (open ? " open" : "") + (us ? ' data-us="' + us + '"' : "") + "><summary><span>" + t + "</span>" + I.chev + '</summary><div class="in">' + body + "</div></details>"; };
+      let f = fold("Why this fits your ask", '<ul class="why-list">' + b.reasons.map(function (r, i) {
+        return '<li><span class="n">' + (i + 1) + '</span><div><div class="t">' + E(r.t) + '</div><div class="d">' + E(r.d) + "</div>" + (r.tag ? '<div class="src"><span class="pill ok">' + I.check + E(r.tag) + "</span></div>" : "") + "</div></li>";
+      }).join("") + "</ul>" + (b.reasoning && b.reasoning.wouldChange ? '<div class="note">' + I.info + "<div><b>What would change this:</b> " + E(b.reasoning.wouldChange) + "</div></div>" : ""), "4.1");
+      if (b.options) f += fold("Options considered", '<div class="opts">' + b.options.map(function (o) { return '<div class="opt' + (o.rec ? " sel" : "") + '"><span class="rd">' + (o.rec ? I.check : "") + '</span><div><div class="t">' + E(o.t) + '</div><div class="d">' + E(o.d) + "</div></div>" + (o.rec ? '<span class="pill brand">Our recommendation</span>' : "<span></span>") + "</div>"; }).join("") + "</div>");
+      if (b.gapMap) f += fold("Where you stand", b.gapMap.map(function (g) { return '<div class="gap-row"><span class="a">' + E(g.area) + '</span><span class="st-pill ' + g.status + '">' + { strong: "In place", partial: "Partly", gap: "Missing", undefined: "Not defined yet" }[g.status] + '</span><span class="n">' + E(g.note) + "</span></div>"; }).join(""), "4.2");
+      f += fold("Ask about this recommendation", '<div class="fu-log" id="fuLog"></div><div class="chips" id="fuChips">' + b.followups.map(function (x, i) { return '<button type="button" class="chip" data-i="' + i + '">' + E(x.q) + "</button>"; }).join("") + "</div>", "4.4");
+      h += '<div class="lbl sec-label">Go deeper</div>' + f;
+      h += '<div class="useful" id="useful" data-us="8.1"><span>Was this useful?</span><button class="btn sm" data-v="yes" type="button">Yes</button><button class="btn sm" data-v="no" type="button">Not really</button></div>';
+    }
+    document.getElementById("main").innerHTML = h;
+    MK.wireNav(document.getElementById("main"));
+
+    const q = function (id) { return document.getElementById(id); };
+    if (q("pdfBtn")) q("pdfBtn").addEventListener("click", function () { MK.tip(this, "PDF export is shown for design only in this prototype."); });
+    if (q("shareBtn")) q("shareBtn").addEventListener("click", function () { MK.tip(this, "Sharing is shown for design only in this prototype."); });
+    if (q("lockBtn")) q("lockBtn").addEventListener("click", function () { MK.lockDecision(); MK.toast("Saved and locked. Answers can no longer be edited."); render(); });
+    if (q("unlockBtn")) q("unlockBtn").addEventListener("click", function () { MK.openUnlock(render); });
+
+    if (a0) {
+      let picks = MK.pickOf(d, a0);
+      q("opts").addEventListener("click", function (e) {
+        const bt = e.target.closest(".optc"); if (!bt) return;
+        const k = bt.dataset.k;
+        if (k === "markiply") picks = ["markiply"];
+        else {
+          picks = picks.filter(function (x) { return x !== "markiply"; });
+          const i = picks.indexOf(k);
+          if (i > -1) { if (picks.length > 1) picks.splice(i, 1); } else picks.push(k);
+        }
+        MK.setPick(a0.id, picks);
+        q("opts").innerHTML = optionCards(a0, picks);
+        q("goBtn").innerHTML = goLabel(picks) + I.arrow;
+        const nb = q("opts").querySelector('[data-k="' + k + '"]'); if (nb) nb.focus();
+        MK.applyTags();
+      });
+      q("goBtn").addEventListener("click", function () {
+        if (picks.indexOf("markiply") > -1) { MK.openExpert({ step: a0 }); return; }
+        if (multi && final && !d.planned) { MK.mutate(d.id, function (x) { x.planned = true; x.stageIndex = Math.max(x.stageIndex || 0, 2); }); MK.log("plan", { decisionId: d.id, title: c.title, note: "Action plan built from the recommendation." }); }
+        MK.go(MK.resultsUrl(a0.id, picks) + "&from=" + (multi && final ? "act" : "decide"));
+      });
+      q("askStep").addEventListener("click", function () { MK.openExpert({ step: a0 }); });
+      const pb = q("planBtn");
+      if (pb) pb.addEventListener("click", function () {
+        MK.mutate(d.id, function (x) { x.planned = true; x.stageIndex = Math.max(x.stageIndex || 0, 2); });
+        if (!d.planned) MK.log("plan", { decisionId: d.id, title: c.title, note: "Action plan built from the recommendation." });
+        MK.go("act.html");
+      });
+    }
+    document.querySelectorAll("#fuChips .chip").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const x = b.followups[+btn.dataset.i];
+        q("fuLog").innerHTML += '<div class="bubble-u">' + E(x.q) + '</div><div class="bubble-a">' + E(x.a) + "</div>";
+        btn.remove();
+        MK.log("followup", { decisionId: d.id, title: c.title, request: x.q });
+      });
+    });
+    document.querySelectorAll("#useful [data-v]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        MK.log("feedback", { decisionId: d.id, title: c.title, request: btn.dataset.v === "yes" ? "Useful" : "Not useful" });
+        q("useful").innerHTML = "<span>Thanks, that helps Markiply learn.</span>";
+      });
+    });
+    MK.applyTags();
+  }
+  render();
+})();
+</script>
+</body>
+</html>
