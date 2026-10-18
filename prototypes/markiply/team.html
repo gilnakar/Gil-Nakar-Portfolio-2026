@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply: team exports</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell team">
+  <a href="home.html" class="back">← Back to Markiply</a>
+  <div data-us="ILL">
+    <h1>What the Markiply team receives</h1>
+    <p class="sub" style="margin-top:8px;">V1 has no admin screens. The team gets lightweight exports and emails. This page only illustrates what they would contain, using everything you did in this prototype plus a few records from other pilot users.</p>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const s = MK.requireLogin();
+  if (!s) return;
+  MK.mount();
+  const E = MK.esc, st = MK.db();
+  const ev = MKDATA.SEED_EVENTS.concat(st.events.slice().reverse());
+  const pick = function (t) { return ev.filter(function (e) { return t.indexOf(e.t) > -1; }); };
+  function table(cols, rows, empty) {
+    if (!rows.length) return '<div class="empty">' + E(empty) + "</div>";
+    return '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + cols.map(function (x) { return "<th>" + E(x) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      rows.map(function (r) { return "<tr>" + r.map(function (x) { return "<td>" + E(x) + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody></table></div>";
+  }
+  function csv(rows) { return rows.map(function (r) { return r.map(function (x) { return '"' + String(x == null ? "" : x).replace(/"/g, '""') + '"'; }).join(","); }).join("\n"); }
+  const sets = {};
+  function section(id, title, us, cap, cols, rows, empty) {
+    sets[id] = [cols].concat(rows);
+    return '<section class="tcard" data-us="' + us + '"><div class="hd"><h2>' + E(title) + '</h2><button class="btn sm copy" data-t="' + id + '" type="button">Copy as CSV</button></div><p class="cap">' + E(cap) + "</p>" + table(cols, rows, empty) + "</section>";
+  }
+  const gaps = pick(["gap"]).map(function (e) { return [e.when, e.who, e.request, e.note || ""]; });
+  const cons = pick(["consult"]).map(function (e) { return [e.when, e.who, e.title || "General request", e.request, e.note || ""]; });
+  const conn = pick(["connect", "nonvetted"]).map(function (e) { return [e.when, e.who, e.t === "connect" ? "Connection sent" : "No vetted match", e.request, e.note || ""]; });
+  const fb = pick(["feedback", "edit", "followup", "final", "lock", "unlock", "update", "tool", "plan"]).map(function (e) { return [e.when, e.who, e.t, e.title || "", e.request || ""]; });
+  const jr = st.decisions.map(function (d) {
+    const c = MK.caseOf(d), stat = MK.statusOf(d), ex = Object.keys(d.exec || {}).map(function (k) { return d.exec[k]; });
+    return [d.created, s.user.name, MK.titleOf(d), c.scenario.mode === "card" ? "Scenario Card: " + c.scenario.card : "AI fallback (not verified)", stat.label, MK.progress(d).answered + " answered", ex.length ? ex.join(", ") : "none yet"];
+  });
+  document.getElementById("out").innerHTML =
+    section("gaps", "Knowledge gaps", "8.2,9.5", "Requests no Scenario Card covers. They show which cards to write next.", ["When", "User", "Request", "Status"], gaps, "No gaps logged yet.") +
+    section("cons", "Consulting requests", "9.4", "Each request arrives as an email to the team. Follow-up is manual.", ["When", "User", "Decision", "Request", "Status"], cons, "No consulting requests yet.") +
+    section("conn", "Provider connections and non-vetted needs", "5.4", "Connections made through Markiply, and needs with no vetted provider.", ["When", "User", "Type", "Detail", "Note"], conn, "Nothing yet.") +
+    section("jr", "Decision journeys", "8.1", "Per decision: guidance source, how far it went, and the execution path chosen.", ["Started", "User", "Decision", "Guidance source", "Status", "Questions", "Execution"], jr, "No decisions yet.") +
+    section("fb", "Edits, follow-up questions and feedback", "8.1", "What users corrected, asked about, and said about the guidance.", ["When", "User", "Type", "Decision", "Detail"], fb, "Nothing yet.");
+  document.querySelectorAll(".copy").forEach(function (b) {
+    b.addEventListener("click", function () {
+      const text = csv(sets[b.dataset.t]), old = b.textContent;
+      try { navigator.clipboard.writeText(text).then(function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = old; }, 1400); }, function () { b.textContent = "Copy not allowed here"; }); } catch (e) { b.textContent = "Copy not allowed here"; }
+    });
+  });
+  MK.applyTags();
+})();
+</script>
+</body>
+</html>

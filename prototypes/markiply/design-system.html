@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply design system</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<header class="topbar-wrap"><div class="pinkline"></div><div class="topbar"><a class="logo" href="home.html"><img src="assets/logo.png" alt="Markiply"></a><div class="right"><a class="btn sm" href="home.html">Back to the prototype</a></div></div></header>
+<main class="shell ds" style="padding-bottom:64px;">
+  <div class="kicker" style="margin-top:32px;">Design system v1.5</div>
+  <h1>Markiply design system</h1>
+  <p class="sub" style="margin-top:8px;max-width:640px;">Tokens and components used by the MVP. Everything here is in mk.css. Nothing is under 13px (one exception: 12px metadata on My decisions) and every text pair meets WCAG AA. White ground, soft lilac washes from the v6 palette, the logo colors in one thin line at the top, and the gradient only on the one primary action. One type scale, three Inter weights. Full rules are in DESIGN-SYSTEM.md.</p>
+
+  <h2>Color</h2>
+  <div class="swatches" id="sw"></div>
+
+  <h2>Type</h2>
+  <div class="specimen">
+    <div class="row-s"><span class="k">Display 40 · Manrope 800</span><span style="font-family:var(--f-display);font-weight:800;font-size:40px;line-height:1.12;">Clarity to decide</span></div>
+    <div class="row-s"><span class="k">Page title 28 (24 on phones) · Manrope 800</span><h1>Your recommendation</h1></div>
+    <div class="row-s"><span class="k">Lead 17 · Inter 400, soft ink</span><p class="sub" style="font-size:var(--t-lead);">Intro lines under a page title and the first ask box.</p></div>
+    <div class="row-s"><span class="k">Section 22 · Manrope 700</span><h2 style="margin:0;">Why this fits your ask</h2></div>
+    <div class="row-s"><span class="k">Card title 17 · Manrope 700</span><h3>Check your CRM list</h3></div>
+    <div class="row-s"><span class="k">Body 16 · Inter 400</span><p>Body copy sits at sixteen pixels with a line height of 1.5 and the main ink color.</p></div>
+    <div class="row-s"><span class="k">Secondary 15 · Inter, soft ink</span><p class="sub">Supporting text uses the soft ink and never goes lighter.</p></div>
+    <div class="row-s"><span class="k">Small 14 · Inter, soft ink</span><p class="note-s">Notes, meta and table captions.</p></div>
+    <div class="row-s"><span class="k">Label 13 · Inter 700, caps (Inter weights: 400 body, 600 interface, 700 labels)</span><span class="lbl">This decision</span></div>
+  </div>
+
+  <h2>Buttons</h2>
+  <div class="specimen"><div class="btn-row">
+    <button class="btn primary">Primary action</button><button class="btn">Secondary</button><button class="btn solid">Solid (Best Fit card)</button><button class="btn soft">Soft (Partner, card actions)</button><button class="btn quiet">Quiet</button><button class="btn sm">Small</button><button class="btn primary" disabled>Disabled</button>
+  </div><p class="note-s">One primary per screen, and it is the only element with the gradient. On result cards the Best Fit card has a solid brand button and the others a soft one, so there is never more than one gradient. Soft pink buttons are for secondary actions on cards and for Partner.</p></div>
+
+  <h2>Trust labels</h2>
+  <div class="specimen"><div class="badges" id="tb"></div><p class="note-s">v6 wording is shown. The PRD label it maps to is kept in data.js (LABELS.prd).</p></div>
+
+  <h2>Tags and chips</h2>
+  <div class="specimen"><div class="badges"><span class="pill">Neutral</span><span class="pill brand">Brand</span><span class="pill ok">Positive</span><span class="pill warn">Caution</span><span class="pill gap">Gap</span></div>
+  <p class="note-s">Tags have 4px corners. Draft, Final and Saved are not shown as tags anywhere. Status is plain text.</p>
+  <div class="chips"><span class="chip">Option</span><span class="chip sel"><span class="tick" style="display:inline-flex">✓</span>Selected</span></div></div>
+
+  <h2>Option cards (Decide)</h2>
+  <div class="specimen"><div class="optcards"><div class="optc sel"><span class="bx" aria-hidden="true">✓</span><span class="t">Find a provider</span><span class="d">Selected state: pink tint and border.</span></div><div class="optc"><span class="bx" aria-hidden="true"></span><span class="t">Find a tool</span><span class="d">Not selected.</span></div></div></div>
+
+  <h2>Result card</h2>
+  <div class="specimen"><div class="rlist" style="margin-top:0;"><article class="rcard rc2 best"><div class="rc-main"><div class="rc-id"><div class="logo-tile">B</div><div class="grow"><div class="name">Provider name</div><div class="sub2">Type</div></div></div><div class="badges"><span class="tb best">Best Fit</span><span class="tb verified">Markiply Verified</span></div><div class="rc-why open"><div class="rc-whyh"><span class="lbl brand">Why it fits you</span><span class="rc-cnt">Matches 3 of your 6 answers</span></div><ul class="rc-wl"><li>Direct experience with your event type</li><li>Budget and timeline inside their range</li></ul><div class="rc-mt"><span class="mtag">B2B customer event</span><span class="mtag">Tel Aviv</span></div></div></div><div class="rc-side"><ul class="rc-facts"><li><span class="k">Location</span><span class="v">Tel Aviv</span></li><li><span class="k">Focus</span><span class="v">Event films</span></li></ul><div class="rc-acts"><span class="btn sm solid">Connect via Markiply</span><span class="btn sm">View details</span></div></div></article></div><p class="note-s" style="margin-top:12px;">Four parts, in this order: who it is, why it fits you (from your answers and Markiply records only), three key facts, and the actions. Only the Best Fit card opens with the full reasons and a solid button. The others show two lines, a soft button, and "See why".</p></div>
+
+<h2>Notes and cards</h2>
+  <div class="specimen">
+    <div class="note"><span>i</span><div>Neutral note for guidance.</div></div>
+    <div class="note warn"><span>!</span><div><b>Early view.</b> Warning note for drafts.</div></div>
+    <div class="note ok"><span>✓</span><div>Positive note.</div></div>
+    <div class="card pad"><h3>Card</h3><p class="sub">White surface, 1px lilac line, 6px radius, a very soft shadow.</p></div>
+  </div>
+</main>
+<script src="data.js"></script><script src="app.js"></script>
+<script>
+MK.initTips();
+const sw=[["ink","#1B1033","Main text"],["ink-2","#5B5370","Secondary text"],["ink-3","#6B6384","Lightest text allowed"],["brand","#C2185B","Primary action, active"],["brand-700","#9E1449","Links on light"],["brand-100","#FBE9F0","Brand tint"],["purple","#482962","Expert actions, gradient end"],["purple-100","#F3ECF8","Neutral chips"],["bg","#FFFFFF","Page"],["tint","#FAF2FA","Soft lilac wash (v6)"],["tint-2","#F6E6F0","Hover wash"],["line","#EFE1F3","Hairlines (v6)"],["line-strong","#E0CCE6","Button and input borders"],["ok","#0B6B53","Evidence text"],["warn","#8A4B05","Partial, draft text"],["gap","#9D174D","Gap text"],["coral","#E63946","Fill only"],["amber","#FFB84D","Fill only"],["cyan","#52C1E6","Fill only"]];
+document.getElementById("sw").innerHTML=sw.map(x=>'<div class="sw"><div class="c" style="background:'+x[1]+'"></div><div class="m"><b>--'+x[0]+'</b>'+x[1]+'<br>'+x[2]+'</div></div>').join("");
+document.getElementById("tb").innerHTML=[["verified","Markiply Verified"],["peers","Recommended by peers"],["network","Referred by our network"],["researched","Researched by Markiply"],["unverified","Listed, not yet verified"],["notcurated","Not curated yet"],["best","Best Fit"]].map(x=>'<span class="tb '+x[0]+'" tabindex="0" data-tip="Hover or focus a label to see what it means.">'+x[1]+'</span>').join("");
+</script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply: clarify</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell">
+  <div class="dl cols57" id="dl">
+    <div class="dl-main" id="main"></div>
+    <aside id="panel" aria-label="Decision summary"></aside>
+  </div>
+</main>
+<div class="mbar" id="mbar" data-us="BP"><div class="shell"><div class="in" id="mbarIn"></div></div></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const s = MK.requireLogin();
+  if (!s) return;
+  let d = MK.cur();
+  if (!d) { MK.go("home.html"); return; }
+  const c = MK.caseOf(d), E = MK.esc, I = MK.ICON, SEP = MK.SEP, panelEl = document.getElementById("panel");
+  MK.mount();
+  MK.renderStepper("clarify");
+  /* coming back to Clarify with everything answered always lands on the finished page */
+  if (MK.progress(d).complete && !MK.here().includes("q=")) MK.mutate(d.id, function (x) { x.view = null; });
+  let draftMulti = null, qErr = "", noteMsg = "", animateNext = false, popV = null, prevM = null, busy = false;
+  const REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function panel() {
+    MK.renderPanel(panelEl, { kind: "flow", onJump: function (qi) { MK.mutate(d.id, function (x) { x.view = qi; }); draftMulti = null; qErr = ""; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }, onChange: render });
+  }
+
+  function matchesBar(P) {
+    const bar = document.getElementById("mbar"), m = MK.matchesOf(c);
+    if (P.complete) { bar.classList.remove("show"); document.body.classList.remove("has-bar"); return; }
+    const part = function (n, one, many, k) { return n ? '<b class="nn" data-k="' + k + '" data-to="' + n + '">' + n + "</b> " + (n === 1 ? one : many) : ""; };
+    const parts = [part(m.providers, "provider", "providers", "p"), part(m.tools, "tool", "tools", "t")].filter(Boolean);
+    document.getElementById("mbarIn").innerHTML =
+      '<a class="mb-btn" id="earlyBtn" href="decide.html" data-us="BP"><span>See early recommendation</span>' + (parts.length ? '<span class="ct">' + parts.join(", ") + "</span>" : "") + I.arrow + "</a>";
+    if (prevM && !REDUCE) document.querySelectorAll("#mbarIn .nn").forEach(function (el) {
+      const from = prevM[el.dataset.k] || 0, to = +el.dataset.to;
+      if (from === to) return;
+      const t0 = performance.now();
+      (function step(t) { const p = Math.min(1, (t - t0) / 420); el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step); })(t0);
+    });
+    prevM = { p: m.providers, t: m.tools };
+    bar.classList.add("show"); document.body.classList.add("has-bar");
+  }
+
+  function conflictNote(q, sel) {
+    const hit = (q.conflicts || []).find(function (cf) { return cf.when.every(function (w) { return sel.indexOf(w) > -1; }); });
+    return hit ? '<div class="note cnote">' + I.info + "<div>" + E(hit.note) + "</div></div>" : "";
+  }
+  function top() { window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function setView(qi) { animateNext = true; draftMulti = null; qErr = ""; MK.mutate(d.id, function (x) { x.view = qi; }); render(); top(); }
+
+  function render() {
+    d = MK.cur();
+    const P = MK.progress(d), locked = !!d.locked, final = !!d.reco;
+    panel(); matchesBar(P);
+    const main = document.getElementById("main");
+    const idx = (d.view != null && P.active.indexOf(d.view) > -1) ? d.view : P.next;
+    let h = "";
+
+    /* finished: add something or ask */
+    if (idx == null) {
+      const last = P.active.length ? P.active[P.active.length - 1] : null;
+      h += '<section class="card qcard done-card" aria-live="polite">' +
+        '<div class="qtop">' + (last != null ? '<button class="navb" id="backBtn" type="button">' + I.back + "Back</button>" : "<span></span>") + '<span class="qn">Clarify · done</span></div>' +
+        "<h1>" + (c.chat.length ? "That is everything I need." : "I already have everything I need.") + "</h1>" +
+        '<p class="why">' + (c.chat.length ? "Add anything I missed, or ask me something." : E(c.opener)) + "</p>" +
+        (d.note ? '<div class="note cnote">' + I.info + "<div>" + E(d.note) + "</div></div>" : "") +
+        '<form class="reply" id="reply" ' + (locked ? "hidden" : "") + ' data-us="BP"><label class="sr" for="replyIn">Add something or ask a question</label><input id="replyIn" placeholder="Add a detail, or ask a question" autocomplete="off"><button class="send" type="submit" aria-label="Add">' + I.send + "</button></form>" +
+        (noteMsg ? '<div class="note ok cnote" role="status">' + I.check + "<div>" + E(noteMsg) + "</div></div>" : "") +
+        (qErr ? '<div class="note cnote" role="status">' + I.info + "<div>" + E(qErr) + "</div></div>" : "") +
+        (locked ? '<div class="note warn cnote">' + I.lock + "<div>This decision is locked. Unlock it from the summary to add or change anything.</div></div>" : "") +
+        (final && !locked ? '<p class="note-s" style="margin-top:12px;" data-us="DR">The recommendation is final. A change or note is saved in your summary, but it does not regenerate the recommendation.</p>' : "") +
+        '<div class="btn-row" style="margin-top:24px;"><a class="btn primary lg" id="goReco" href="decide.html">' + (final ? "Back to the recommendation" : "View my recommendation") + I.arrow + "</a></div></section>";
+      main.innerHTML = h;
+      const bb = document.getElementById("backBtn");
+      if (bb) bb.addEventListener("click", function () { setView(last); });
+      document.getElementById("reply").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const inp = document.getElementById("replyIn"), t = inp.value.trim();
+        if (!t) { inp.focus(); return; }
+        if (/\?\s*$/.test(t)) { qErr = "Good question. I cannot answer it here yet, but a Markiply expert can. Use “Talk to a Markiply expert” in the summary."; noteMsg = ""; render(); return; }
+        MK.addNote(t); qErr = ""; noteMsg = "Added to your Decision summary, under “Added by you”. It does not change the recommendation."; render();
+      });
+      MK.applyTags();
+      return;
+    }
+
+    const q = c.chat[idx], pos = P.active.indexOf(idx), remaining = P.active.length - pos - 1;
+    const curAns = MK.ansOf(d, idx), multi = !!q.multi;
+    const sel = draftMulti || (curAns ? (multi ? curAns.split(SEP) : [curAns]) : []);
+    const cue = remaining <= 0 ? "Last question" : (remaining === 1 ? "Almost there" : "A few more after this");
+    const prevIdx = pos > 0 ? P.active[pos - 1] : null;
+    const nextIdx = (curAns != null && pos < P.active.length - 1) ? P.active[pos + 1] : null;
+    const answered = curAns != null;
+    h += '<section class="card qcard' + "" + '" aria-live="polite" data-us="3.1">' +
+      '<div class="qtop"><button class="navb' + (prevIdx == null ? " off" : "") + '" id="backBtn" type="button" ' + (prevIdx == null ? 'disabled aria-hidden="true" tabindex="-1"' : "") + ' aria-label="Previous question">' + I.back + 'Back</button>' +
+      '<div class="qn">Question ' + (pos + 1) + " of " + P.active.length + "<span>" + cue + '</span></div>' +
+      '<button class="navb' + (nextIdx == null ? " off" : "") + '" id="nextBtn" type="button" ' + (nextIdx == null ? 'disabled aria-hidden="true" tabindex="-1"' : "") + ' aria-label="Next question">Next' + I.arrow + "</button></div>" +
+      (pos === 0 ? '<p class="opener" data-us="2.3">' + E(c.opener) + "</p>" : "") +
+      (d.note && pos !== 0 ? '<div class="note cnote" style="margin-bottom:16px;">' + I.info + "<div>" + E(d.note) + "</div></div>" : "") +
+      "<h1>" + E(q.ai) + "</h1>" +
+      (q.why ? '<p class="why" data-us="BP"><b>Why I ask:</b> ' + E(q.why) + "</p>" : "") +
+      (locked ? '<div class="note warn cnote">' + I.lock + "<div>This decision is locked. Unlock it from the summary to change an answer.</div></div>" : "") +
+      (final && !locked ? '<div class="note cnote" data-us="DR">' + I.info + "<div>The recommendation is final. A change here is saved and marked, but it is not regenerated.</div></div>" : "") +
+      '<div class="hintline">' + (multi ? (q.max ? "Pick up to " + (q.max === 3 ? "three" : q.max) : "Pick all that apply") : "Pick one") + "</div>" +
+      '<div class="chips" role="group" aria-label="Answers">' + q.chips.map(function (x) {
+        const on = sel.indexOf(x) > -1;
+        const full = multi && q.max && sel.length >= q.max && !on;
+        return '<button type="button" class="chip' + (on ? " sel" : "") + '" data-v="' + E(x) + '" aria-pressed="' + on + '" ' + (locked || full ? "disabled" : "") + '><span class="tick">' + I.check + "</span>" + E(x) + "</button>";
+      }).join("") + "</div>" +
+      '<div class="btn-row" style="margin-top:16px;"><button class="btn primary" id="contBtn" type="button" ' + (!sel.length || locked ? "disabled" : "") + ">Continue" + I.arrow + "</button></div>" +
+      (multi ? conflictNote(q, sel) : "") +
+      (q.insight ? '<details class="insight" data-us="3.3"><summary>' + I.chev + '<span class="tt">' + E(q.insight.t) + '</span><span class="pill">Expert knowledge</span></summary><div class="ib"><p>' + E(q.insight.d) + '</p><ul class="chk">' + q.insight.why.map(function (w) { return "<li>" + I.check + E(w) + "</li>"; }).join("") + "</ul></div></details>" : "") +
+      '<form class="reply" id="reply" ' + (locked ? "hidden" : "") + '><label class="sr" for="replyIn">Answer in your own words, or press Enter to continue</label><input id="replyIn" placeholder="Add a note, or answer in your own words" autocomplete="off"><button class="send" type="submit" aria-label="Continue">' + I.send + "</button></form>" +
+      (qErr ? '<div class="note cnote" role="status">' + I.info + "<div>" + E(qErr) + "</div></div>" : "") +
+      "</section>";
+    main.innerHTML = h;
+    animateNext = false;
+
+    /* an answer on a question that was already answered moves on to the next one, not to the end */
+    function commit(v) {
+      const wasComplete = P.complete;
+      animateNext = true; draftMulti = null; qErr = "";
+      MK.setAnswer(d.id, idx, v);
+      if (wasComplete && pos < P.active.length - 1) MK.mutate(d.id, function (x) { x.view = P.active[pos + 1]; });
+      render(); top();
+    }
+    document.getElementById("backBtn").addEventListener("click", function () { if (prevIdx != null) setView(prevIdx); });
+    document.getElementById("nextBtn").addEventListener("click", function () { if (nextIdx != null) setView(nextIdx); });
+    main.querySelectorAll(".chip").forEach(function (b) {
+      b.addEventListener("click", function () {
+        const v = b.dataset.v;
+        qErr = "";
+        if (multi) {
+          const cur = sel.slice(), i = cur.indexOf(v);
+          if (i > -1) cur.splice(i, 1); else cur.push(v);
+          draftMulti = cur;
+        } else draftMulti = [v];
+        render();
+      });
+    });
+    const cb = document.getElementById("contBtn");
+    if (cb) cb.addEventListener("click", function () { commit(sel.join(SEP)); });
+    /* the arrow acts as Continue: typed text answers, an empty box moves on */
+    document.getElementById("reply").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const t = document.getElementById("replyIn").value.trim();
+      if (!t) {
+        if (sel.length) { commit(sel.join(SEP)); return; }
+        if (answered) { if (nextIdx != null) setView(nextIdx); else { draftMulti = null; MK.mutate(d.id, function (x) { x.view = null; }); render(); top(); } return; }
+        qErr = "Pick an answer above, or type one here."; render(); return;
+      }
+      if (/\?\s*$/.test(t)) { qErr = "Good question. I cannot answer it inside the questions yet, but a Markiply expert can. Use “Talk to a Markiply expert” in the summary."; render(); return; }
+      if (sel.length) MK.addNote(t);
+      commit(sel.length ? sel.join(SEP) : t);
+    });
+    MK.applyTags();
+  }
+
+  MK.markStage("clarify");
+  render();
+})();
+</script>
+</body>
+</html>

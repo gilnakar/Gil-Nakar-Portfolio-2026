@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply: action plan</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell">
+  <div class="dl" id="dl">
+    <div class="dl-main" id="main"></div>
+    <aside id="panel" aria-label="Decision summary"></aside>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const s = MK.requireLogin();
+  if (!s) return;
+  let d = MK.cur();
+  if (!d) { MK.go("home.html"); return; }
+  d = MK.enterDecide();
+  if (!d.reco) { MK.go("decide.html"); return; }
+  if (!d.planned) MK.mutate(d.id, function (x) { x.planned = true; });
+  const c = MK.caseOf(d), E = MK.esc, I = MK.ICON, panelEl = document.getElementById("panel");
+  MK.mount();
+  MK.renderStepper("act");
+  MK.markStage("act");
+  const COL = ["#482962", "#C2185B", "#52C1E6", "#FFB84D", "#E63946", "#0B6B53", "#8A82A0"];
+  const money = n => "$" + n + "K";
+
+  function split(sp) {
+    const totB = sp.rows.reduce(function (a, r) { return a + r.a; }, 0), totA = sp.rows.reduce(function (a, r) { return a + r.b; }, 0);
+    const bar = function (key, tot) { return '<div class="bar-row"><span class="bl">' + (key === "a" ? "Before" : "After") + '</span><div class="stack" role="img" aria-label="' + (key === "a" ? "Before" : "After") + ' split">' + sp.rows.map(function (r, i) { return r[key] ? '<i style="width:' + (r[key] / tot * 100) + "%;background:" + COL[i % COL.length] + '" title="' + E(r.n) + '"></i>' : ""; }).join("") + "</div></div>"; };
+    return '<section class="sect" data-us="BP"><h2>The split</h2><p class="sub">Before and after, in thousands of US dollars (sample numbers).</p>' +
+      bar("a", totB) + bar("b", totA) +
+      '<div class="split-wrap"><table class="split" style="margin-top:16px;"><thead><tr><th scope="col">Line</th><th scope="col" class="num">Before</th><th scope="col" class="num">After</th><th scope="col" class="num">Change</th></tr></thead><tbody>' +
+      sp.rows.map(function (r, i) {
+        const df = r.b - r.a;
+        return '<tr><td class="name"><span class="sw-dot" style="background:' + COL[i % COL.length] + '"></span>' + E(r.n) + (r.hl ? ' <span class="pill brand">New</span>' : "") + '</td><td class="num">' + (r.a ? money(r.a) : "None") + '</td><td class="num"><b>' + (r.b ? money(r.b) : "None") + '</b></td><td class="num"><span class="chg ' + (df > 0 ? "up" : (df < 0 ? "dn" : "")) + '">' + (df === 0 ? "No change" : (df > 0 ? "+" : "-") + money(Math.abs(df))) + "</span></td></tr>";
+      }).join("") +
+      '<tr class="total"><td class="name">Total</td><td class="num">' + sp.total + '</td><td class="num">' + sp.total + '</td><td class="num"></td></tr></tbody></table></div>' +
+      '<p class="footnote">' + E(sp.note) + "</p></section>";
+  }
+
+  let noteOpen = null;
+  function stepCard(a, i, many, ap) {
+    const p = MK.pathsOf(a), base = "results.html?from=act&a=" + a.id + "&k=";
+    const cons = (d.contacts || []).filter(function (k) { return k.aid === a.id; }), tls = (d.toolSel || []).filter(function (k) { return k.aid === a.id; });
+    const own = (d.notes || []).filter(function (n) { return n.step === a.text; });
+    let paths = "";
+    if (p.providers) paths += '<a class="btn" href="' + base + 'providers" data-us="5.1">Find a provider</a>';
+    if (p.tools) paths += '<a class="btn" href="' + base + 'tools" data-us="BP">Find a tool</a>';
+    if (p.providers && p.tools) paths += '<a class="btn" href="' + base + 'both">Providers and tools</a>';
+    const status = (cons.length ? '<div class="status">' + I.check + "Contacted <b>" + E(cons.map(function (k) { return k.name; }).join(", ")) + "</b> through Markiply</div>" : "") +
+      (tls.length ? '<div class="status">' + I.check + "Selected: <b>" + E(tls.map(function (k) { return k.name; }).join(", ")) + "</b></div>" : "");
+    const lines = ap ? ap.chosen.filter(function (o) { return o.steps && o.steps[a.id]; }) : [];
+    const under = lines.length ? '<div class="under"><div class="lbl">' + (lines.length > 1 ? "Under your combined approach" : "Under your approach") + "</div>" + lines.map(function (o) {
+      return "<p>" + (lines.length > 1 ? "<b>" + E(o.t.split(".")[0]) + ":</b> " : "") + E(o.steps[a.id]) + "</p>"; }).join("") + "</div>" : "";
+    const notes = own.map(function (n) { return '<div class="snote">' + I.chat + "<div>" + E(n.t) + '<div class="m">' + E(n.at) + "</div></div></div>"; }).join("");
+    const form = noteOpen === a.id ? '<div class="nform"><label class="sr" for="nt-' + a.id + '">Your note on this step</label><textarea id="nt-' + a.id + '" placeholder="Add a note on this step. It is saved in your Decision summary and the report."></textarea><div class="btn-row"><button class="btn sm primary" type="button" data-nsave="' + a.id + '">Save note</button><button class="btn sm" type="button" data-ncancel="1">Cancel</button></div></div>' : "";
+    return '<article class="stepc ' + (i === 0 ? "start" : "") + '" id="step-' + a.id + '">' + (many ? '<div class="lbl' + (i === 0 ? " brand" : "") + '">Step ' + (i + 1) + (i === 0 ? " · start here" : "") + "</div>" : "") +
+      '<div><div class="t">' + E(a.text) + "</div>" + (a.hint ? '<div class="h">' + E(a.hint) + "</div>" : "") + "</div>" + under +
+      '<div class="paths">' + (paths || '<span class="note-s">No provider or tool match for this step. It is yours to do.</span>') +
+      '<span class="pa-r"><button class="askstep" type="button" data-addnote="' + a.id + '">' + I.pencil + "Add note</button><button class=\"askstep\" type=\"button\" data-ask=\"" + a.id + '" data-us="BP">' + I.chat + "Ask about this step</button></span></div>" + status + notes + form + "</article>";
+  }
+
+  function render() {
+    d = MK.cur();
+    const b = MK.briefOf(d), acts = MK.allActions(c, d), bp = !!c.blueprint, many = acts.length > 1, ap = MK.approachOf(d);
+    MK.renderPanel(panelEl, { kind: "late", onChange: render });
+    const upd = c.updatable && d.postEdits && Object.keys(d.postEdits).length;
+    const st = MK.stateOf(d);
+    const topActs = '<div class="acts"><button class="btn sm" id="pdfBtn" type="button" data-us="4.2">' + I.download + 'PDF</button><button class="btn sm" id="shareBtn" type="button" data-us="4.2">' + I.share + "Share</button></div>";
+    const toc = [["ov", "Overview"], ap ? ["apr", "Your approach"] : null, b.split ? ["nums", "The numbers"] : null, ["steps", many ? "Steps" : "Your step"], (b.act && b.act.checkpoint) ? ["chk", "Checkpoint"] : null, (b.act && b.act.template) ? ["tpl", "Template"] : null, bp ? ["more", "More tasks"] : null].filter(Boolean);
+    let h = MK.crumb(d) + MK.navRow("decide.html", "the recommendation", topActs) +
+      '<div class="plan-h"><div class="lbl brand" style="margin-bottom:6px;">' + (bp ? "Blueprint" : "Action plan") + (d.version > 1 ? " · Version " + d.version : "") + (st.key === "locked" ? " · Locked" : "") + "</div><h1>" + (bp ? "Your blueprint: " + E(c.title) : "Your action plan") + '</h1>' +
+      '<p class="lead-s">' + E(c.title) + ". " + (many ? acts.length + " steps" : "One step") + (ap ? ", built on " + (ap.chosen.length > 1 ? "your combined approach" : "approach " + E(ap.chosen[0].t.split(".")[0])) : "") + ".</p></div>" +
+      '<nav class="toc" aria-label="On this page">' + toc.map(function (t) { return '<a href="#' + t[0] + '">' + t[1] + "</a>"; }).join("") + "</nav>" +
+      '<section class="card doc" id="ov" data-us="BP"><div class="doc-sec"><h3>The decision</h3><p>' + E(b.answer) + "</p>" +
+      (b.kpis ? '<div class="tiers">' + b.kpis.map(function (k) { return '<div class="tier"><div class="n">' + E(k.v) + '</div><div class="k"><b>' + E(k.k) + "</b><br>" + E(k.s) + "</div></div>"; }).join("") + "</div>" : "") + "</div>" +
+      (b.reasons ? '<div class="doc-sec"><h3>Why this fits your ask</h3><ol class="why-list">' + b.reasons.map(function (r, i) { return '<li><span class="n">' + (i + 1) + '</span><div><div class="t">' + E(r.t) + '</div><div class="d">' + E(r.d) + "</div></div></li>"; }).join("") + "</ol></div>" : "") +
+      (b.understood ? '<div class="doc-sec"><h3>What we understood</h3><ul class="bullets">' + b.understood.map(function (x) { return "<li>" + E(x) + "</li>"; }).join("") + "</ul></div>" : "") +
+      (b.reasoning && b.reasoning.wouldChange ? '<div class="doc-sec"><h3>What would change this</h3><p>' + E(b.reasoning.wouldChange) + "</p></div>" : "") + "</section>";
+    if (upd) {
+      h += '<div class="note warn" style="margin-top:16px;" data-us="BP,DR">' + I.warn + "<div><b>Your answers changed after this " + (bp ? "blueprint" : "plan") + " was built.</b> The plan below still follows your earlier answers.<div class=\"btn-row\" style=\"margin-top:10px;\"><button class=\"btn sm primary\" id=\"updBtn\" type=\"button\">Update blueprint</button><span class=\"note-s\">This creates version " + ((d.version || 1) + 1) + " from your edited answers.</span></div></div></div>";
+    }
+    if (ap) h += '<div class="stage-label" id="apr"><b>Your approach</b><span>Change it on the recommendation page.</span></div><section class="card pad" data-us="BP">' + ap.chosen.map(function (o) { return "<p><b>" + E(o.t) + "</b><br>" + E(o.d) + "</p>"; }).join('<hr class="soft">') + (ap.chosen.length > 1 ? '<p class="note-s" style="margin-top:10px;">Combined: each step below shows the lines of every option you picked.</p>' : "") + '<div class="btn-row" style="margin-top:12px;"><a class="btn sm" href="decide.html">Change approach</a></div></section>';
+    if (b.split) h += '<div id="nums">' + split(b.split) + (ap && (ap.sel.length !== 1 || !ap.opts[ap.sel[0]].rec) ? '<p class="note-s" style="margin-top:10px;">The table shows our recommended split. Your plan follows the approach you chose, so use the table as a reference and adjust the numbers in your template.</p>' : "") + "</div>";
+    h += '<div class="stage-label" id="steps"><b>' + (many ? "Steps" : "Your step") + "</b>" + (many ? "<span>For each step: find a provider, a tool or both, add a note, or ask.</span>" : "") + "</div>";
+    if (b.priorities) {
+      ["now", "next", "later"].forEach(function (k) {
+        const list = acts.filter(function (a) { return a.stage === k; });
+        if (!list.length) return;
+        h += '<div class="stage-label"><b>' + { now: "Now", next: "Next", later: "Later" }[k] + "</b></div>" + list.map(function (a) { return stepCard(a, acts.indexOf(a), many, ap); }).join("");
+      });
+    } else h += acts.map(function (a, i) { return stepCard(a, i, many, ap); }).join("");
+
+    if (b.act && b.act.checkpoint) {
+      h += '<div class="stage-label" id="chk"><b>Checkpoint</b></div><article class="stepc" data-us="BP"><div><div class="t">Day 90</div><div class="h">' + E(b.act.checkpoint) + "</div></div></article>";
+    }
+    if (b.act && b.act.template) {
+      h += '<div class="stage-label" id="tpl"><b>Template</b></div><article class="card tpl" data-us="ILL"><span class="ico">' + I.file + '</span><div><div class="t" style="font-weight:700;">' + E(b.act.template.name) + '</div><div class="note-s">' + E(b.act.template.note) + '</div></div><button class="btn" id="tplBtn" type="button">' + I.download + "Download</button></article>";
+    }
+    if (bp) {
+      const rest = c.blueprint.sections.filter(function (x) { return !x.me; });
+      h += '<div class="stage-label" id="more"><b>More blueprint tasks</b><span>Each is its own decision in your project.</span></div><section class="card pad" data-us="BP"><ul class="bullets">' + rest.map(function (x) { return "<li><b>" + E(x.a) + "</b>" + (x.req ? " · required" : " · later") + "</li>"; }).join("") + '</ul><p class="note-s" style="margin-top:12px;">Open them from My decisions, in the project “' + E(c.blueprint.name) + '”. Bringing the tasks together into one blueprint comes in a later version.</p><div class="btn-row" style="margin-top:12px;"><a class="btn" href="decisions.html">Go to My decisions</a></div></section>';
+    }
+    document.getElementById("main").innerHTML = h;
+    MK.wireNav(document.getElementById("main"));
+    const q = function (id) { return document.getElementById(id); };
+    if (q("pdfBtn")) q("pdfBtn").addEventListener("click", function () { MK.openReport(); });
+    if (q("shareBtn")) q("shareBtn").addEventListener("click", function () { MK.tip(this, "Sharing is shown for design only in this prototype."); });
+    document.querySelectorAll(".toc a").forEach(function (l) { l.addEventListener("click", function (e) { const t = document.getElementById(l.getAttribute("href").slice(1)); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); } }); });
+    document.querySelectorAll("[data-ask]").forEach(function (btn) {
+      btn.addEventListener("click", function () { MK.openExpert({ step: acts.find(function (a) { return a.id === btn.dataset.ask; }), onSent: render }); });
+    });
+    document.querySelectorAll("[data-addnote]").forEach(function (btn) {
+      btn.addEventListener("click", function () { noteOpen = btn.dataset.addnote; render(); const t = document.getElementById("nt-" + noteOpen); if (t) t.focus(); });
+    });
+    document.querySelectorAll("[data-ncancel]").forEach(function (btn) { btn.addEventListener("click", function () { noteOpen = null; render(); }); });
+    document.querySelectorAll("[data-nsave]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const id = btn.dataset.nsave, t = document.getElementById("nt-" + id), a = acts.find(function (x) { return x.id === id; });
+        if (!t || !t.value.trim()) { t && t.focus(); return; }
+        MK.addNote(t.value, a.text); noteOpen = null; MK.toast("Note added to your Decision summary."); render();
+      });
+    });
+    const ub = document.getElementById("updBtn"); if (ub) ub.addEventListener("click", function () { MK.updateBlueprint(); MK.toast("Blueprint updated to version " + MK.cur().version); render(); });
+    const tb = document.getElementById("tplBtn"); if (tb) tb.addEventListener("click", function () { MK.tip(this, "Sample only. A real template download comes in a later version."); });
+    MK.applyTags();
+  }
+  render();
+})();
+</script>
+</body>
+</html>

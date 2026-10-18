@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell">
+  <section class="hero">
+    <div class="kicker">Clarity to decide. Trust to act.</div>
+    <h1 id="greet"></h1>
+    <p class="lead">Describe it in your own words. I only ask what I do not already know.</p>
+    <div class="ask" data-us="2.1">
+      <label class="sr" for="askInput">Describe your marketing need or decision</label>
+      <textarea id="askInput" placeholder="For example: I need a video production company for a B2B customer event in Tel Aviv"></textarea>
+      <div class="row"><span style="display:flex;align-items:center;gap:12px;"><button type="button" class="wand" id="wand" data-us="DEMO" aria-label="Fill an example request" title="Fill an example request"></button><span class="hint">No need to pick a category.</span></span><button class="btn primary" id="startBtn" type="button">Continue</button></div>
+    </div>
+  </section>
+
+  <div class="ex-wrap">
+    <div class="sec-t"><h2>Start from an example</h2></div>
+    <div class="examples" data-us="2.2" id="examples"></div>
+    <details class="more"><summary id="moreSum">More examples</summary><div class="examples" id="more"></div></details>
+    <div style="height:72px"></div>
+  </div>
+</main>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const s = MK.requireLogin();
+  if (!s) return;
+  MK.mount();
+  document.getElementById("greet").innerHTML = "Hi " + MK.esc(s.user.first) + ', what <span class="grad">marketing decision</span> are you working on?';
+  const E = MK.esc, EX = MKDATA.EXAMPLES.main, MORE = MKDATA.EXAMPLES.more;
+  function row(x) {
+    return '<button type="button" class="ex" data-key="' + x.key + '">' +
+      (x.tag ? '<span class="tagrow"><span class="pill">' + E(x.tag) + "</span></span>" : "") +
+      '<span class="q">“' + E(x.q) + '”</span><span class="go" aria-hidden="true">' + MK.ICON.arrow + '</span><span class="d">' + E(x.d) + "</span></button>";
+  }
+  document.getElementById("examples").innerHTML = EX.map(row).join("");
+  document.getElementById("more").innerHTML = MORE.map(row).join("");
+  const all = EX.concat(MORE);
+  document.querySelectorAll(".ex").forEach(function (b) {
+    b.addEventListener("click", function () {
+      const x = all.find(function (y) { return y.key === b.dataset.key; });
+      MK.start(x.key, x.key === "gen" ? x.q : null);
+      MK.go("clarify.html");
+    });
+  });
+  document.getElementById("startBtn").addEventListener("click", function () {
+    const t = document.getElementById("askInput").value.trim();
+    if (!t) { document.getElementById("askInput").focus(); return; }
+    MK.start(MK.classify(t), t);
+    MK.go("clarify.html");
+  });
+  document.getElementById("wand").innerHTML = MK.ICON.wand;
+  let wi = 0;
+  document.getElementById("wand").addEventListener("click", function () {
+    const inp = document.getElementById("askInput");
+    inp.value = EX[wi % EX.length].q; wi++; inp.focus();
+  });
+  document.getElementById("askInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) document.getElementById("startBtn").click();
+  });
+  MK.applyTags();
+})();
+</script>
+</body>
+</html>

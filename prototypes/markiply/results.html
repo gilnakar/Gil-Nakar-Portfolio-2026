@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markiply: matches</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="mk.css">
+</head>
+<body>
+<div id="chrome"></div>
+<main class="shell">
+  <div class="dl closed" id="dl">
+    <div class="dl-main" id="main"></div>
+    <aside id="panel" aria-label="Decision summary"></aside>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const s = MK.requireLogin();
+  if (!s) return;
+  let d = MK.cur();
+  if (!d) { MK.go("home.html"); return; }
+  const c = MK.caseOf(d), E = MK.esc, I = MK.ICON, P = MKDATA.PROVIDERS, T = MKDATA.TOOLS, L = MKDATA.LABELS, TIPS = MKDATA.TIPS, panelEl = document.getElementById("panel");
+  Object.keys(P).forEach(function (k) { P[k].key = k; });
+  Object.keys(T).forEach(function (k) { T[k].key = k; });
+  MK.mount();
+  const params = new URLSearchParams(location.search);
+  const aid = params.get("a"), from = params.get("from") === "act" ? "act" : "decide", pdId = params.get("pd"), tdId = params.get("td");
+  const a = MK.findAction(c, aid);
+  if (!a) { MK.go(MK.progress(d).complete ? "act.html" : "decide.html"); return; }
+  const early = !MK.progress(d).complete;
+  const setP = a.set && MKDATA.SETS[a.set], setT = a.tset && MKDATA.TSETS[a.tset];
+  let K = params.get("k");
+  if (K === "both" && !(setP && setT)) K = setP ? "providers" : "tools";
+  if (K !== "tools" && K !== "both") K = "providers";
+  if (K === "providers" && !setP && setT) K = "tools";
+  const backList = (early || from === "decide") ? "decide.html" : "act.html";
+  MK.mutate(d.id, function (x) { x.lastResults = "results.html" + location.search; x.stageIndex = Math.max(x.stageIndex || 0, 2); });
+  MK.renderStepper("act");
+  const vr = MK.variantOf(d), ovr = vr && vr.best && vr.best[a.set];
+  let tab = params.get("t") === "tools" ? "tools" : "providers";
+  if (K !== "both") tab = K;
+
+  const listUrl = function (t) { return "results.html?from=" + from + "&a=" + a.id + "&k=" + K + (K === "both" ? "&t=" + t : ""); };
+  const panel = function () { MK.renderPanel(panelEl, { kind: "browse", onChange: draw }); };
+
+  function tile(p, cls, lg) { return MK.logo("p", p.key, lg ? "lg" : ""); }
+  function link(lab, v) { return v ? '<span><span class="k">' + lab + '</span><a href="#" onclick="return false">' + E(v) + "</a></span>" : ""; }
+  const calm = function () { return early ? '<p class="calm" data-us="BP">' + I.info + "<span>Early matches. Your decision is not fully clarified yet, so this list may change as you answer.</span></p>" : ""; };
+  const askLink = function () { return '<button class="askstep" id="askStep" type="button" data-us="BP">' + I.chat + "Ask about this step</button>"; };
+
+  /* ================= providers ================= */
+  function matching() {
+    d = MK.cur();
+    const choice = (d.provAsk || {})[a.id];
+    let best = ovr ? ovr.id : setP.best, why = ovr ? ovr.why : setP.bestWhy;
+    if (setP.ask && choice !== undefined) best = setP.ask.chips[choice] || null;
+    let list = setP.vetted.slice();
+    if (setP.ask && best) list = [best];
+    list.sort(function (x, y) { return x === best ? -1 : (y === best ? 1 : 0); });
+    return { choice: choice, best: best, why: why, list: list };
+  }
+  /* ---------- result cards: one format for every card. Identity, why it fits you (always visible), key facts, actions ---------- */
+  const STOPW = new Set(["with", "your", "this", "that", "from", "have", "will", "into", "than", "more", "only", "need", "needs"]);
+  let animateList = true, hlKey = null;
+  function toks(v) { return String(v).toLowerCase().replace(/[^a-z0-9\u0590-\u05FF ]/g, " ").split(/\s+/).filter(function (w) { return w.length >= 4 && !STOPW.has(w); }); }
+  /* Matches come only from what the person answered and the stored record of the provider or tool. */
+  function fitOf(o) {
+    const rows = MK.decisionRows(d).filter(function (r) { return r.k !== "Need"; });
+    const hay = [o.name, o.type, o.cat, o.sub, o.loc, o.desc, o.bestFor, o.services].concat(o.caps || [], o.fits || []).join(" ").toLowerCase();
+    const hit = [], miss = [];
+    rows.forEach(function (r) { (toks(r.v).some(function (w) { return hay.indexOf(w) > -1; }) ? hit : miss).push(r); });
+    return { hit: hit, miss: miss, total: rows.length };
+  }
+  function whyBlock(key, o) {
+    const f = fitOf(o), fits = (o.fits || []).slice(0, 3);
+    const pop = '<div class="rc-pop" id="mi-' + key + '" role="tooltip"><div class="rc-pop-h">Your answers and this match</div>' +
+      f.hit.map(function (r) { return '<div class="rc-pr ok">' + I.check + '<span class="k">' + E(r.k) + '</span><span class="v">' + E(r.v) + "</span></div>"; }).join("") +
+      f.miss.map(function (r) { return '<div class="rc-pr no"><span class="dash" aria-hidden="true">–</span><span class="k">' + E(r.k) + '</span><span class="v">' + E(r.v) + '</span><span class="nc">Not confirmed</span></div>'; }).join("") +
+      '<p class="rc-pop-f">Not confirmed means Markiply holds no record on it yet. It does not mean this does not fit.</p></div>';
+    return '<div class="rc-why" data-us="5.3"><div class="rc-whyh"><span class="lbl">Why it fits you</span>' +
+      (f.total ? '<span class="rc-infow"><button type="button" class="rc-info" aria-describedby="mi-' + key + '" aria-expanded="false">Matches ' + f.hit.length + " of " + f.total + (f.total === 1 ? " answer" : " answers") + I.info + "</button>" + pop + "</span>" : "") + "</div>" +
+      '<ul class="rc-wl">' + fits.map(function (x) { return "<li>" + I.check + "<span>" + E(x) + "</span></li>"; }).join("") + "</ul>" +
+      (f.hit.length ? '<div class="rc-mt" aria-label="Matched answers">' + f.hit.slice(0, 3).map(function (r) { return '<span class="mtag">' + I.check + "<span>" + E(r.v) + "</span></span>"; }).join("") + (f.hit.length > 3 ? '<span class="mtag more">+' + (f.hit.length - 3) + "</span>" : "") + "</div>" : "") + "</div>";
+  }
+  function factsBlock(list) {
+    return '<ul class="rc-facts">' + list.filter(function (x) { return x[1]; }).slice(0, 3).map(function (x) { return '<li><span class="k">' + E(x[0]) + '</span><span class="v">' + E(x[1]) + "</span></li>"; }).join("") + "</ul>";
+  }
+  let cardIdx = 0;
+  function cardAttrs(key, best) { const i = cardIdx++; return ' style="--i:' + Math.min(i, 7) + '"' + ' data-ck="' + key + '"'; }
+  function cardP(id, best) {
+    const p = P[id], k = (d.contacts || []).find(function (x) { return x.pid === id && x.aid === a.id; });
+    const det = listUrl("providers") + "&pd=" + id;
+    const facts = [["Location", p.loc], ["Focus", p.sub], ["Trust", p.community > 0 ? p.community + " peer " + (p.community === 1 ? "recommendation" : "recommendations") : (p.expert ? "Markiply expert network" : "")]];
+    return '<article class="rcard rc2' + (best ? " best" : "") + (animateList ? " enter" : "") + (hlKey === "p-" + id ? " hl" : "") + '" data-us="5.5"' + cardAttrs("p-" + id, best) + '><div class="rc-main"><div class="rc-id">' + tile(p) + '<div class="grow"><div class="name"><a href="' + det + '">' + E(p.name) + '</a></div><div class="sub2">' + E(p.type) + "</div></div></div>" +
+      '<div class="badges">' + (best ? MK.tagH("best", I.check, "Best Fit", TIPS.best, "5.3") : "") + MK.providerLabels(p) + (k ? MK.tagH("connected", I.check, "Contacted " + k.at, "You contacted this provider through Markiply.") : "") + "</div>" +
+      whyBlock("p-" + id, p) + "</div>" +
+      '<div class="rc-side">' + factsBlock(facts) + '<div class="rc-acts">' +
+      (k ? '<button type="button" class="btn sm outline" data-sent="' + k.id + '">' + I.eye + "View what I sent</button>" : '<button type="button" class="btn sm ' + (best ? "primary" : "solid") + '" data-conn="' + id + '">Connect via Markiply</button>') +
+      '<a class="btn sm outline" href="' + det + '">View details</a></div></div></article>';
+  }
+  function cardNV(id) {
+    const p = P[id];
+    return '<article class="rcard" data-us="5.4">' + MK.logo("p", id) + '<div><div class="name">' + E(p.name) + '</div><div class="sub2">' + E(p.type) + '</div><div class="badges">' + MK.label("unverified") + '</div><div class="why1">' + E(p.desc) + " <b>Why suggested:</b> " + E(p.why) + " Markiply has no records on this provider, so check them yourself before committing.</div></div><div class=\"ract\"><span class=\"sub2\">" + E(p.links.web) + "</span></div></article>";
+  }
+  function providersView() {
+    const m = matching();
+    let h = "";
+    if (!setP.vetted.length) {
+      h += '<div class="empty-pv" data-us="5.4"><h3>No verified provider matches this yet</h3><p>Markiply does not have a vetted provider for this need, so nothing here is Markiply Verified. These suggestions come from AI, and none is verified. If you want help you can rely on, a Markiply expert can take this on.</p></div>' +
+        '<div class="lbl" style="margin:24px 0 0;">AI-suggested, not verified</div><div class="rlist">' + setP.ai.map(cardNV).join("") + "</div>";
+      const st = MK.db(), key = d.id + ":" + a.id;
+      if (!st.events.some(function (e) { return e.t === "nonvetted" && e.key === key; })) MK.log("nonvetted", { key: key, decisionId: d.id, title: c.title, request: a.text, note: "No vetted match. AI suggested " + setP.ai.length + " provider(s) (Not Verified)." });
+      return h;
+    }
+    if (setP.ask && m.choice === undefined) {
+      return '<div class="empty-pv" data-us="5.1"><h3>One more thing before I match</h3><p>' + E(setP.ask.q) + '</p><div class="chips" style="margin-top:12px;">' + Object.keys(setP.ask.chips).map(function (k) { return '<button type="button" class="chip" data-askv="' + E(k) + '">' + E(k) + "</button>"; }).join("") + "</div></div>";
+    }
+    if (setP.ask) h += '<div class="note ok">' + I.check + "<div>Matching on: <b>" + E(m.choice) + "</b></div></div>";
+    if (!m.best) h += '<div class="note plain" style="margin-top:12px;" data-us="5.3">' + I.info + "<div>" + E(m.list.length > 1 ? (setP.noBest || "The information we have does not separate these options, so we do not pick a Best Fit.") : "Only one verified provider matches, so there is no Best Fit to choose.") + "</div></div>";
+    h += '<div class="rlist">' + m.list.map(function (id) { return cardP(id, id === m.best); }).join("") + "</div>";
+    h += '<p class="pv-foot">No paid placement. Ranking comes from Markiply\'s records only.</p>';
+    return h;
+  }
+
+  /* ================= tools ================= */
+  function cardT(id, best, generic) {
+    const t = T[id], sel = MK.toolSelected(d, id, a.id), det = listUrl("tools") + "&td=" + id;
+    const lab = generic ? MK.label("notcurated") : MK.label(t.label) + (t.g2 ? '<span class="pill neutral">G2 ' + t.g2.toFixed(1) + " (sample)</span>" : "");
+    const facts = [["Price", t.price], ["Category", t.cat], ["Best for", t.bestFor]];
+    return '<article class="rcard rc2 tool' + (best ? " best" : "") + (animateList ? " enter" : "") + (hlKey === "t-" + id ? " hl" : "") + '" data-us="BP"' + cardAttrs("t-" + id, best) + '><div class="rc-main"><div class="rc-id">' + MK.logo("t", id) + '<div class="grow"><div class="name"><a href="' + det + '">' + E(t.name) + '</a></div><div class="sub2">' + E(t.desc) + "</div></div></div>" +
+      '<div class="badges">' + (best ? MK.tagH("best", I.check, "Best Fit", TIPS.best) : "") + lab + (t.perk ? MK.tagH("perk", "", "Partner offer", "A Markiply partner offer. It does not affect how tools are ranked.") : "") + (sel ? MK.tagH("connected", I.check, "Selected", "You selected this tool for this step.") : "") + "</div>" +
+      whyBlock("t-" + id, t) + "</div>" +
+      '<div class="rc-side">' + factsBlock(facts) + '<div class="rc-acts">' +
+      (sel ? '<button type="button" class="btn sm outline" data-tsel="' + id + '">' + I.check + "Selected · Remove</button>" : '<button type="button" class="btn sm ' + (best ? "primary" : "solid") + '" data-tsel="' + id + '">Select this tool</button>') +
+      '<a class="btn sm outline" href="' + det + '">View details</a></div></div></article>';
+  }
+  function toolsView() {
+    if (setT.generic) {
+      return '<div class="note warn" data-us="BP">' + I.help + "<div><b>" + E(L.notcurated.text) + ".</b> Markiply has not curated tools for this step yet. These are general suggestions, so check them yourself.</div></div><div class=\"rlist\">" + setT.generic.map(function (id) { return cardT(id, false, true); }).join("") + "</div>";
+    }
+    const bestId = setT.best, rest = setT.vetted.filter(function (id) { return id !== bestId; }).concat(setT.listed || []);
+    let h = "";
+    if (!bestId) h += '<div class="note plain" style="margin-bottom:12px;">' + I.info + "<div>" + (setT.vetted.length > 1 ? "The information we have does not separate these tools, so we do not pick a Best Fit." : "Only one researched tool matches, so there is no Best Fit to choose.") + "</div></div>";
+    h += '<div class="rlist">' + (bestId ? cardT(bestId, true) : "") + rest.map(function (id) { return cardT(id, false); }).join("") + "</div>";
+    h += '<p class="pv-foot">No paid placement in rankings. Researched tools come from Markiply\'s own review.</p>';
+    return h;
+  }
+
+  /* ================= list page ================= */
+  function listPage() {
+    d = MK.cur(); cardIdx = 0;
+    const nP = setP ? (setP.vetted.length || (setP.ai || []).length) : 0, nT = setT ? (setT.generic ? setT.generic.length : setT.vetted.length + (setT.listed || []).length) : 0;
+    const showing = K === "both" ? tab : K;
+    const title = K === "both" ? "Providers and tools" : (K === "tools" ? "Tools" : "Providers");
+    const expl = showing === "providers"
+      ? "Matched to your answers and ranked only on Markiply's records. Providers here are fictional placeholders."
+      : "Researched by Markiply where marked. Tools here are fictional placeholders, and ratings and prices are samples.";
+    let h = MK.navRow(backList, "the recommendation") + '<div class="rhead"><h1>' + title + '</h1><p class="sub">' + expl + ' <span class="note-s">For: ' + E(a.text) + "</span></p></div>" + calm();
+    if (K === "both") h += '<div class="tabs" role="tablist" aria-label="Providers or tools"><button type="button" role="tab" id="tabP" aria-selected="' + (tab === "providers") + '" data-tab="providers">Providers (' + nP + ')</button><button type="button" role="tab" id="tabT" aria-selected="' + (tab === "tools") + '" data-tab="tools">Tools (' + nT + ")</button></div>";
+    h += '<div role="' + (K === "both" ? "tabpanel" : "region") + '" aria-label="' + (showing === "providers" ? "Providers" : "Tools") + '">' + (showing === "providers" ? providersView() : toolsView()) + "</div>";
+    h += '<div style="margin-top:12px;">' + askLink() + "</div>";
+    document.getElementById("main").innerHTML = h;
+    wire();
+    document.querySelectorAll("[data-tab]").forEach(function (b) { b.addEventListener("click", function () { tab = b.dataset.tab; history.replaceState(null, "", listUrl(tab)); animateList = true; listPage(); const t = document.getElementById(tab === "tools" ? "tabT" : "tabP"); if (t) t.focus(); }); });
+    document.querySelectorAll(".rc-info").forEach(function (b) { b.addEventListener("click", function (e) { e.stopPropagation(); const w = b.closest(".rc-infow"), on = !w.classList.contains("open"); document.querySelectorAll(".rc-infow.open").forEach(function (x) { x.classList.remove("open"); x.querySelector(".rc-info").setAttribute("aria-expanded", "false"); }); w.classList.toggle("open", on); b.setAttribute("aria-expanded", String(on)); }); });
+    document.querySelectorAll("[data-conn]").forEach(function (b) { b.addEventListener("click", function () { const id = b.dataset.conn; MK.openConnect(id, a.id, function () { MK.toast("Sent. It is in your Decision summary."); animateList = false; hlKey = "p-" + id; listPage(); panel(); }); }); });
+    document.querySelectorAll("[data-sent]").forEach(function (b) { b.addEventListener("click", function () { MK.viewSent(b.dataset.sent); }); });
+    document.querySelectorAll("[data-tsel]").forEach(function (b) { b.addEventListener("click", function () { const on = MK.toggleTool(b.dataset.tsel, a.id); MK.toast(on ? "Tool added to your Decision summary" : "Tool removed from your summary"); const keep = b.dataset.tsel; animateList = false; hlKey = "t-" + keep; listPage(); panel(); const nb = document.querySelector('[data-tsel="' + keep + '"]'); if (nb) nb.focus(); }); });
+    animateList = false; hlKey = null;
+    document.querySelectorAll("[data-askv]").forEach(function (b) { b.addEventListener("click", function () { MK.mutate(d.id, function (x) { x.provAsk = x.provAsk || {}; x.provAsk[a.id] = b.dataset.askv; }); listPage(); }); });
+  }
+
+  /* ================= detail pages ================= */
+  function detailP(id) {
+    const p = P[id];
+    if (!p || !p.fits) { history.replaceState(null, "", listUrl("providers")); draw(); return; }
+    d = MK.cur();
+    const m = setP.vetted.length ? matching() : { best: null, why: "" }, isBest = id === m.best, k = (d.contacts || []).find(function (x) { return x.pid === id && x.aid === a.id; });
+    const rows = MK.decisionRows(d).filter(function (r) { return r.k !== "Need"; }).slice(0, 5).map(function (r) { return r.v; });
+    const li = function (x) { return "<li>" + E(x) + "</li>"; };
+    const h = MK.navRow(listUrl("providers"), "the results") + '<div class="pd-head" data-us="5.5"><div class="pd-idrow">' + tile(p, "", true) + '<div><h1>' + E(p.name) + '</h1><div class="sub2">' + E(p.type) + " · " + E(p.sub) + " · " + E(p.loc) + '</div></div></div><div class="badges">' + (isBest ? MK.tagH("best", I.check, "Best Fit", TIPS.best, "5.3") : "") + MK.providerLabels(p) + "</div>" +
+      '<div class="ctx">For this step: ' + E(a.text) + "</div>" + (early ? '<div style="margin-top:12px;">' + calm().replace('class="calm"', 'class="calm" style="border:0;padding:0;margin:0;"') + "</div>" : "") +
+      '<div class="pd-cta">' + (k ? MK.tagH("connected", I.check, "Contacted " + k.at, "You contacted this provider through Markiply.") + '<button class="btn sm" id="viewSent" type="button">' + I.eye + "View what I sent</button>" : '<button class="btn primary" id="connBtn" type="button">Connect via Markiply</button>') + askLink() + "</div></div>" +
+      '<section class="pd-sec" data-us="5.5"><h2>Why this provider fits your brief</h2>' + (rows.length ? '<div class="tags">' + E(rows.join(" · ")) + "</div>" : "") + (isBest && m.why && !early ? "<p>" + E(m.why) + "</p>" : "") + '<ul class="bullets" style="margin-top:8px;">' + p.fits.map(li).join("") + "</ul></section>" +
+      '<section class="pd-sec card acard" data-us="5.5"><h2>Trust signals</h2><p class="note-s" style="margin-bottom:12px;">Stored and approved by Markiply. Never generated by AI.</p><ul class="ts">' +
+      '<li><span class="ic">' + I.shield + '</span><div><div class="t">' + E(L.verified.text) + '</div><div class="d">' + E(L.verified.about) + "</div></div></li>" +
+      (p.expert ? '<li><span class="ic">' + I.check + '</span><div><div class="t">' + E(L.network.text) + '</div><div class="d">' + E(L.network.about) + "</div></div></li>" : "") +
+      (p.community > 0 ? '<li><span class="ic">' + I.check + '</span><div><div class="t">' + E(L.peers.text) + '</div><div class="d">Recommended by ' + p.community + " approved community " + (p.community === 1 ? "member" : "members") + "</div></div></li>" : "") + "</ul>" +
+      (p.quotes ? '<details class="qs" data-us="BP"><summary><span>What others say</span>' + I.chev + "</summary>" + p.quotes.map(function (x) { return '<div class="quote"><p>“' + E(x.t) + '”</p><div class="who">' + E(x.who) + "</div></div>"; }).join("") + '<div class="sample">Sample quotes. Real ones come only from approved community data.</div></details>' : "") + "</section>" +
+      '<details class="fold" style="margin-top:24px;"><summary><span>About ' + E(p.name) + "</span>" + I.chev + '</summary><div class="in"><p>' + E(p.desc) + '</p><div class="caps">' + p.caps.map(function (x) { return "<span>" + E(x) + "</span>"; }).join("") + '</div><div class="evid">' + E(p.evidence) + '</div><div class="contact">' + link("Web", p.links.web) + link("LinkedIn", p.links.li) + link("Email", p.links.email) + "</div></div></details>";
+    document.getElementById("main").innerHTML = h;
+    wire();
+    const cb = document.getElementById("connBtn"); if (cb) cb.addEventListener("click", function () { MK.openConnect(id, a.id, function () { MK.toast("Sent. It is in your Decision summary."); detailP(id); panel(); }); });
+    const vs = document.getElementById("viewSent"); if (vs) vs.addEventListener("click", function () { MK.viewSent(k.id); });
+  }
+  function detailT(id) {
+    const t = T[id];
+    if (!t) { history.replaceState(null, "", listUrl("tools")); draw(); return; }
+    d = MK.cur();
+    const sel = MK.toolSelected(d, id, a.id), isBest = setT.best === id, li = function (x) { return "<li>" + E(x) + "</li>"; };
+    const alts = (t.alts || []).filter(function (x) { return T[x]; });
+    const h = MK.navRow(listUrl("tools"), "the results") + '<div class="pd-head" data-us="BP"><div class="pd-idrow">' + MK.logo("t", id, "lg") + '<div><h1>' + E(t.name) + '</h1><div class="sub2">' + E(t.cat) + " · " + E(t.price) + '</div></div></div><div class="badges">' + (isBest ? MK.tagH("best", I.check, "Best Fit", TIPS.best) : "") + (setT.generic ? MK.label("notcurated") : MK.label(t.label)) + (t.g2 ? '<span class="pill neutral">G2 ' + t.g2.toFixed(1) + " (sample)</span>" : "") + "</div>" +
+      '<div class="ctx">For this step: ' + E(a.text) + "</div>" + (early ? '<div style="margin-top:12px;">' + calm().replace('class="calm"', 'class="calm" style="border:0;padding:0;margin:0;"') + "</div>" : "") +
+      '<div class="pd-cta">' + (sel ? MK.tagH("connected", I.check, "Selected", "You selected this tool for this step.") + '<button class="btn sm" id="selBtn" type="button">Remove from my summary</button>' : '<button class="btn primary" id="selBtn" type="button">Select this tool</button>') + '<button class="btn" id="visitBtn" type="button">Visit website' + I.external + "</button>" + askLink() + "</div></div>" +
+      (t.take ? '<section class="pd-sec"><h2>Our take</h2><p>' + E(t.take) + "</p></section>" : "") +
+      '<section class="pd-sec"><h2>At a glance</h2><div class="kvgrid">' +
+      (t.bestFor ? '<div><div class="k">Best for</div><div class="v">' + E(t.bestFor) + "</div></div>" : "") + (t.notIdeal ? '<div><div class="k">Not ideal for</div><div class="v">' + E(t.notIdeal) + "</div></div>" : "") +
+      (t.services ? '<div><div class="k">Services</div><div class="v">' + E(t.services) + "</div></div>" : "") + (t.integ ? '<div><div class="k">Integrations</div><div class="v">' + E(t.integ) + "</div></div>" : "") +
+      '<div><div class="k">Pricing</div><div class="v">' + E(t.price) + "</div></div></div></section>" +
+      '<section class="pd-sec"><h2>Why this tool fits your step</h2><p>' + E(t.desc) + '</p><ul class="bullets" style="margin-top:8px;">' + t.fits.map(li).join("") + "</ul></section>" +
+      (t.perk ? '<section class="pd-sec" data-us="BP"><div class="perk"><div class="t">Markiply partner offer</div><div>' + E(t.perk) + '</div><div class="note-s">Partner offers are separate from how tools are ranked. A tool is never ranked higher for having one.</div></div></section>' : "") +
+      (alts.length ? '<section class="pd-sec"><h2>Alternatives</h2><div class="altrow">' + alts.map(function (x) { return '<a href="' + listUrl("tools") + "&td=" + x + '">' + MK.logo("t", x) + '<div><div style="font-weight:600;">' + E(T[x].name) + '</div><div class="sub2">' + E(T[x].desc) + "</div></div></a>"; }).join("") + "</div></section>" : "") +
+      '<section class="pd-sec card acard"><h2>What we know</h2><div class="evid">' + E(t.evidence) + '</div><div class="caps" style="margin-top:12px;">' + t.caps.map(function (x) { return "<span>" + E(x) + "</span>"; }).join("") + '</div><div class="contact" style="margin-top:12px;">' + link("Web", t.links.web) + "</div></section>";
+    document.getElementById("main").innerHTML = h;
+    wire();
+    document.getElementById("selBtn").addEventListener("click", function () {
+      const on = MK.toggleTool(id, a.id);
+      MK.toast(on ? "Tool added to your Decision summary" : "Tool removed from your summary");
+      detailT(id); panel();
+    });
+    document.getElementById("visitBtn").addEventListener("click", function () { MK.tip(this, "Placeholder site. Real links come in a later version."); });
+  }
+
+  function wire() {
+    MK.wireNav(document.getElementById("main"));
+    const ask = document.getElementById("askStep"); if (ask) ask.addEventListener("click", function () { MK.openExpert({ step: a, onSent: draw }); });
+    MK.applyTags();
+  }
+  function draw() {
+    panel();
+    if (pdId && P[pdId]) detailP(pdId);
+    else if (tdId && T[tdId]) detailT(tdId);
+    else listPage();
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
